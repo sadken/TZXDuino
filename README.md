@@ -1,6 +1,7 @@
 #TZXDuino
 
-Arduino based TZX and TAP (currently only ZX spectrum and Amstrad CPC flavour) file player.
+Arduino based TZX and TAP (currently only ZX spectrum and Amstrad CPC flavour) file player.<br/>
+(Excuse the badly written code, I'm working on that ;) )
 
 ## Parts Used
 1. Arduino (I used a Nano, but this should work on any NANO compatible)
