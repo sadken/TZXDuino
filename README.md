@@ -18,38 +18,38 @@ With so many variations on the SD, LCD I2C, and TimerOne libraries i thought I'd
 
 All buttons and the motor control pull the pin to GND.
 
-Arduino Pins:
-       06 -> MOTOR CONTROL (Connected to one side of the 2.5mm socket Only used on some CPC models)
-       07 -> BUTTON (ROOT)
-       09 -> Output (To Amp)
-       10 -> SDCS (SD Card chip select)
-       11 -> MOSI (SD Card MOSI PIN)
-       12 -> MISO (SD Card MI PIN)
-       13 -> SCK (SD Card SCK PIN)
-A0     14 -> BUTTON (DOWN)
-A1     15 -> BUTTON (UP)
-A2     16 -> BUTTON (STOP)
-A3     17 -> BUTTON (PLAT)
-A4 SDA 18 -> LCD SDA
-A5 SCL 19 -> LCD SCL
-
-
-LCD PINS:
-SDA ->  Arduino A4
-SCL ->  Arduino A5
-VCC ->  5v
-GND ->  GND
-
-SD CARD PINS:
- GND -> GND
-3.3V -> NC
-  5V -> 5V
-SDCS -> 10 ARDUINO
-MOSI -> 11 ARDUINO
- SCK -> 13 ARDUINO
-MISO -> 12 ARDUINO
- GND -> GND
- 
+Arduino Pins:<br/>
+       06 -> MOTOR CONTROL (Connected to one side of the 2.5mm socket Only used on some CPC models)<br/> 
+       07 -> BUTTON (ROOT)<br/>
+       09 -> Output (To Amp)<br/>
+       10 -> SDCS (SD Card chip select)<br/>
+       11 -> MOSI (SD Card MOSI PIN)<br/>
+       12 -> MISO (SD Card MI PIN)<br/>
+       13 -> SCK (SD Card SCK PIN)<br/>
+A0     14 -> BUTTON (DOWN)<br/>
+A1     15 -> BUTTON (UP)<br/>
+A2     16 -> BUTTON (STOP)<br/>
+A3     17 -> BUTTON (PLAT)<br/>
+A4 SDA 18 -> LCD SDA<br/>
+A5 SCL 19 -> LCD SCL<br/>
+<br/>
+<br/>
+LCD PINS:<br/>
+SDA ->  Arduino A4<br/>
+SCL ->  Arduino A5<br/>
+VCC ->  5v<br/>
+GND ->  GND<br/>
+<br/>
+SD CARD PINS:<br/>
+ GND -> GND<br/>
+3.3V -> NC<br/>
+  5V -> 5V<br/>
+SDCS -> 10 ARDUINO<br/>
+MOSI -> 11 ARDUINO<br/>
+ SCK -> 13 ARDUINO<br/>
+MISO -> 12 ARDUINO<br/>
+ GND -> GND<br/>
+<br/>
 ## Usage
 Wire up as above, and program the Arduino using the IDE.
 
