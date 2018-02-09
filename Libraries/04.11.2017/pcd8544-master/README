@@ -1,0 +1,33 @@
+This is a library for the lcd controller pcd8544, used in 
+Nokia 3310, 5110 and probably others, for Arduino (http://www.arduino.cc/) and
+The Maple (http://leaflabs.com/devices/maple/). Since the controller isn't
+pixel adressable it is used most as a text display, but simple graphics is
+pretty straightforward to implement.
+
+Look at the example sketch and the header file to see how to use the routines.
+
+Both hard and software SPI can be used to communicate with the display.
+If hardware SPI is used the pins SCLK and DN(MOSI) must be on pin
+13 and 11 and pin 10 must (and is) set to output on Arduino. Same pins
+for SPI1 on Maple and pins 34 and 32 for SPI2 (untested).
+Serial clock is 4MHz for Arduino and 4.5 for Maple (2.25 for SPI2? Fix?)
+
+If software SPI is used you can chose any pins for the display.
+The sluggish shiftOut is used for soft SPI, serial clock
+is about 66kHz on Arduino and 534 kHz on Maple.
+
+I have used it with an Arduino Duemillanove, a Maple rev.3, and 
+"Graphic LCD 84x48 - Nokia 5110" from Sparkfun 
+(http://www.sparkfun.com/products/10168).
+
+In the examples the lcd is connected as:
+
+LCD        Arduino/Maple
+8-LED      220ohm resistor to 5V or 22ohm to 3V3
+7-SCLK     13 (sclk_pin)
+6-DN(MOSI) 11 (sdin_pin)
+5-D/C      5  (dc_pin)
+4-RST      6  (reset_pin)
+3-SCE      7  (cs_pin)
+2-GND      GND
+1-VCC      3V3 (NOT 5V!)
