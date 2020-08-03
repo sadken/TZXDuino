@@ -1,6 +1,6 @@
-#TZXDuino
+## TZXDuino
 
-##WARNING!
+## WARNING!
 
 This repo is hugely out of date and Duncan has taken over the project. 
 
@@ -14,7 +14,7 @@ Andrew
 
 
 
-##Now for the old info:
+## Now for the old info:
 
 
 Arduino based TZX and TAP (currently only ZX spectrum and Amstrad CPC flavour) file player.<br/>
