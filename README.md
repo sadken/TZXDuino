@@ -1,12 +1,20 @@
 #TZXDuino
 
-#WARNING!
+##WARNING!
 
 This repo is hugely out of date and Duncan has taken over the project. 
 
 All the latest information can be found here: https://www.facebook.com/Arduitape
 
+Thanks
 
+Andrew
+
+
+
+
+
+##Now for the old info:
 
 
 Arduino based TZX and TAP (currently only ZX spectrum and Amstrad CPC flavour) file player.<br/>
