@@ -1,3 +1,5 @@
+
+
 void clearBuffer()
 {
   
@@ -12,49 +14,72 @@ word TickToUs(word ticks) {
   return (word) ((((float) ticks)/3.5)+0.5);
 }
 
-void TZXPlay(char *filename) {
-  Timer1.stop();                              //Stop timer interrupt
-  if(!entry.open(filename,O_READ)) {          //open file and check for errors
-    printtext("Error Opening File",0);
-  }
-  bytesRead=0;                                //start of file
-  currentTask=GETFILEHEADER;                  //First task: search for header
+
+void checkForEXT (char *filename) {
   if(checkForTap(filename)) {                 //Check for Tap File.  As these have no header we can skip straight to playing data
     currentTask=PROCESSID;
     currentID=TAP;
-    //printtext("TAP Playing",0);
+    if((readfile(1,bytesRead))==1) {
+         if (input[0] == 0x16) {
+            currentID=ORIC;
+         }
+      }
+    //printtextF(PSTR("TAP Playing"),0);
   }
   if(checkForP(filename)) {                 //Check for P File.  As these have no header we can skip straight to playing data
     currentTask=PROCESSID;
     currentID=ZXP;
-    //printtext("ZX81 P Playing",0);
+    //printtextF(PSTR("ZX81 P Playing"),0);
   }
   if(checkForO(filename)) {                 //Check for O File.  As these have no header we can skip straight to playing data
     currentTask=PROCESSID;
     currentID=ZXO;
-    //printtext("ZX80 O Playing",0);
+    //printtextF(PSTR("ZX80 O Playing"),0);
   }
   if(checkForAY(filename)) {                 //Check for AY File.  As these have no TAP header we must create it and send AY DATA Block after
     currentTask=GETAYHEADER;
     currentID=AYO;
     AYPASS = 0;                             // Reset AY PASS flags
     hdrptr = HDRSTART;                      // Start reading from position 1 -> 0x13 [0x00]
-    //printtext("AY Playing",0);
+    //printtextF(PSTR("AY Playing"),0);
   }
+  if(checkForUEF(filename)) {                 //Check for UEF File.  As these have no TAP header we must create it and send AY DATA Block after
+    currentTask=GETUEFHEADER;
+    currentID=UEF;
+    //Serial.println(F("UEF playing"));
+    //printtext("AY Playing",0);
+  }  
+}
+
+void TZXPlay(char *filename) {
+  Timer1.stop();                              //Stop timer interrupt
+  if(!entry.open(filename,O_READ)) {          //open file and check for errors
+    printtextF(PSTR("Error Opening File"),0);
+    //lcd_clearline(0);
+    //lcd.print(F("Error Opening File"));    
+  } 
+  bytesRead=0;                                //start of file
+  currentTask=GETFILEHEADER;                  //First task: search for header
+  checkForEXT (filename);
   currentBlockTask = READPARAM;               //First block task is to read in parameters
   clearBuffer();
   isStopped=false;
   pinState=LOW;                               //Always Start on a LOW output for simplicity
   count = 255;                                //End of file buffer flush
   EndOfFile=false;
-  digitalWrite(outputPin, pinState);
+  //digitalWrite(outputPin, pinState);
+  if(pinState==LOW) {
+        LowWrite(PORTB, PORTB1);}
+        else
+        {
+          HighWrite(PORTB, PORTB1); }
   Timer1.setPeriod(1000);                     //set 1ms wait at start of a file.
 }
 
 bool checkForTap(char *filename) {
   //Check for TAP file extensions as these have no header
   byte len = strlen(filename);
-  if(strstr(strlwr(filename + (len-4)), ".tap")) {
+  if(strstr_P(strlwr(filename + (len-4)), PSTR(".tap"))) {
     return true;
   }
   return false;
@@ -63,7 +88,7 @@ bool checkForTap(char *filename) {
 bool checkForP(char *filename) {
   //Check for TAP file extensions as these have no header
   byte len = strlen(filename);
-  if(strstr(strlwr(filename + (len-2)), ".p")) {
+  if(strstr_P(strlwr(filename + (len-2)), PSTR(".p"))) {
     return true;
   }
   return false;
@@ -72,7 +97,7 @@ bool checkForP(char *filename) {
 bool checkForO(char *filename) {
   //Check for TAP file extensions as these have no header
   byte len = strlen(filename);
-  if(strstr(strlwr(filename + (len-2)), ".o")) {
+  if(strstr_P(strlwr(filename + (len-2)), PSTR(".o"))) {
     return true;
   }
   return false;
@@ -81,7 +106,16 @@ bool checkForO(char *filename) {
 bool checkForAY(char *filename) {
   //Check for AY file extensions as these have no header
   byte len = strlen(filename);
-  if(strstr(strlwr(filename + (len-3)), ".ay")) {
+  if(strstr_P(strlwr(filename + (len-3)), PSTR(".ay"))) {
+    return true;
+  }
+  return false;
+}
+
+bool checkForUEF(char *filename) {
+  //Serial.println(F("checkForUEF"));
+  byte len = strlen(filename);
+  if(strstr_P(strlwr(filename + (len-4)), PSTR(".uef"))) {
     return true;
   }
   return false;
@@ -95,14 +129,16 @@ void TZXStop() {
   //lcd.setCursor(0,1);
   //lcd.print(blkchksum,HEX); lcd.print("ck "); lcd.print(bytesRead); lcd.print(" "); lcd.print(ayblklen);
    
-  bytesRead=0;                                // reset read bytes counter
+  bytesRead=0;                                // reset read bytes PlayBytes
   blkchksum = 0;                              // reset block chksum byte for AY loading routine
   AYPASS = 0;                                 // reset AY flag
+  ID15switch = 0;                              // ID15switch
 }
 
 void TZXPause() {
   isStopped=pauseOn;
 }
+
 
 void TZXLoop() {
     noInterrupts();                           //Pause interrupts to prevent var reads and copy values out
@@ -124,12 +160,26 @@ void TZXLoop() {
         interrupts();
         btemppos+=1;
       }
-    }
+    } else {
+        
+        if ((pauseOn == 0)&& (currpct<100)) lcdTime();  
+        newpct=(100 * bytesRead)/filesize;                   
+        if (currpct == 100){
+            currpct = 0;
+            Counter2();
+        }
+        if ((newpct >currpct)&& (newpct % 1 == 0)) {
+          
+            Counter2();
+            
+            currpct = newpct;
+         }
+    } 
 }
 
 void TZXSetup() {
     pinMode(outputPin, OUTPUT);               //Set output pin
-    digitalWrite(outputPin, LOW);             //Start output LOW
+    LowWrite(PORTB, PORTB1);             //Start output LOW
     isStopped=true;
     pinState=LOW;
     Timer1.initialize(100000);                //100ms pause prevents anything bad happening before we're ready
@@ -152,6 +202,221 @@ void TZXProcess() {
       //set current task to PROCESSID
       currentTask = PROCESSID;
     }
+    if (currentTask == GETUEFHEADER) {
+      //grab 12 byte string
+      ReadUEFHeader();
+      //set current task to GETCHUNKID
+      currentTask = GETCHUNKID;
+    }
+    if(currentTask == GETCHUNKID) {
+     
+      if(r=ReadWord(bytesRead)==2) {
+         chunkID = outWord;
+         if(r=ReadDword(bytesRead)==4) {
+            bytesToRead = outLong;
+            parity = 0;
+
+         if (chunkID == ID0104) {
+              //bytesRead+= 3;
+              bytesToRead+= -3;
+              bytesRead+= 1;
+              //grab 1 byte Parity
+              if(ReadByte(bytesRead)==1) {
+                if (outByte == 'O') parity = wibble ? 2 : 1;
+                else if (outByte == 'E') parity = wibble ? 1 : 2;
+                else parity = 0 ;  // 'N'
+              }
+              bytesRead+= 1;                                         
+            }
+
+         } else {
+             chunkID = IDCHUNKEOF;
+         }
+      } else {
+        chunkID = IDCHUNKEOF;
+      }
+      if (!(uefTurboMode)) {
+         zeroPulse = UEFZEROPULSE;
+         onePulse = UEFONEPULSE;
+      } else {
+         zeroPulse = UEFTURBOZEROPULSE;
+         onePulse = UEFTURBOONEPULSE;  
+      }
+      lastByte=0;
+      
+      //reset data block values
+      currentBit=0;
+      pass=0;
+      //set current task to PROCESSCHUNKID
+      currentTask = PROCESSCHUNKID;
+      currentBlockTask = READPARAM;
+      UEFPASS = 0;
+    }
+    if(currentTask == PROCESSCHUNKID) {
+      //CHUNKID Processing
+
+      switch(chunkID) {
+        case ID0000:
+          bytesRead+=bytesToRead;
+          currentTask = GETCHUNKID;
+          break;
+          
+        case ID0100:
+          
+          //bytesRead+=bytesToRead;
+          writeUEFData();
+        break;
+
+        case ID0104:          
+          //parity = 1; // ParityOdd i.e complete with value to get Odd number of ones
+          /* stopBits = */ //stopBitPulses = 1;
+          writeUEFData();
+          //bytesRead+=bytesToRead;
+          break;
+        
+        case ID0110:
+          if(currentBlockTask==READPARAM){
+            if(r=ReadWord(bytesRead)==2) {
+              if (!(uefTurboMode)) {     
+                 pilotPulses = UEFPILOTPULSES;
+                 pilotLength = UEFPILOTLENGTH;
+              } else {
+                // turbo mode    
+                 pilotPulses = UEFTURBOPILOTPULSES;
+                 pilotLength = UEFTURBOPILOTLENGTH;
+                
+              }
+            }
+            currentBlockTask = PILOT;
+          } else {
+            UEFCarrierToneBlock();
+          }
+          //bytesRead+=bytesToRead;
+          //currentTask = GETCHUNKID;
+        break;
+
+        case ID0111:
+          if(currentBlockTask==READPARAM){
+            if(r=ReadWord(bytesRead)==2) {             
+                pilotPulses = UEFPILOTPULSES; // for TURBOBAUD1500 is outWord<<2
+                pilotLength = UEFPILOTLENGTH;                      
+            }
+            currentBlockTask = PILOT;
+            UEFPASS+=1;  
+          } else if (UEFPASS == 1){
+              UEFCarrierToneBlock();
+              if(pilotPulses==0) {
+                currentTask = PROCESSCHUNKID;
+                currentByte = 0xAA;
+                lastByte = 1;
+                currentBit = 10;
+                pass=0;
+                UEFPASS = 2;
+              }
+          } else if (UEFPASS == 2){
+              parity = 0; // NoParity
+              writeUEFData();
+              if (currentBit==0) {
+                currentTask = PROCESSCHUNKID;
+                currentBlockTask = READPARAM;
+              }          
+          } else if (UEFPASS == 3){
+            UEFCarrierToneBlock();
+          }      
+        break;
+
+        case ID0112:
+          //if(currentBlockTask==READPARAM){
+            if(r=ReadWord(bytesRead)==2) {
+              if (outWord>0) {
+                //Serial.print(F("delay="));
+                //Serial.println(outWord,DEC);
+                temppause = outWord;
+                
+                currentID = IDPAUSE;
+                currentPeriod = temppause;
+                bitSet(currentPeriod, 15);
+                currentTask = GETCHUNKID;
+              } else {
+                currentTask = GETCHUNKID;
+              }     
+            }
+          //} 
+        break;
+
+        case ID0114: 
+          if(r=ReadWord(bytesRead)==2) {
+            pilotPulses = UEFPILOTPULSES;
+            //pilotLength = UEFPILOTLENGTH;
+            bytesRead-=2; 
+          }
+          UEFCarrierToneBlock();
+          bytesRead+=bytesToRead;
+          currentTask = GETCHUNKID;
+        break;
+
+        case ID0116:
+          //if(currentBlockTask==READPARAM){
+            if(r=ReadDword(bytesRead)==4) {
+              byte * FloatB = (byte *) &outLong;
+              outWord = (((*(FloatB+2)&0x80) >> 7) | (*(FloatB+3)&0x7f) << 1) + 10;
+              outWord = *FloatB | (*(FloatB+1))<<8  | ((outWord&1)<<7)<<16 | (outWord>>1)<<24  ;
+              outFloat = *((float *) &outWord);
+              outWord= (int) outFloat;
+              
+              if (outWord>0) {
+                //Serial.print(F("delay="));
+                //Serial.println(outWord,DEC);
+                temppause = outWord;
+                
+                currentID = IDPAUSE;
+                currentPeriod = temppause;
+                bitSet(currentPeriod, 15);
+                currentTask = GETCHUNKID;
+              } else {
+                currentTask = GETCHUNKID;
+              }     
+            }
+          //} 
+        break;
+
+        case ID0117:
+            if(r=ReadWord(bytesRead)==2) {
+              if (outWord == 300) {
+                passforZero = 8;
+                passforOne = 16;
+                currentTask = GETCHUNKID;
+              } else {
+                passforZero = 2;
+                passforOne =  4;              
+                currentTask = GETCHUNKID;
+              }     
+            }           
+          break;
+          
+        case IDCHUNKEOF:
+        if(!count==0) {
+            //currentPeriod = 32767;
+            currentPeriod = 10;
+            bitSet(currentPeriod, 15); //bitSet(currentPeriod, 12);
+            count += -1;
+          } else {
+            bytesRead+=bytesToRead;
+            stopFile();
+          return;
+          }
+        break;
+          
+        default:
+          //Serial.print(F("Skip id "));
+          //Serial.print(chunkID);
+          bytesRead+=bytesToRead;
+          currentTask = GETCHUNKID;
+        break;
+            
+      }
+      } 
+    
     if(currentTask == GETID) {
       //grab 1 byte ID
       if(ReadByte(bytesRead)==1) {
@@ -294,7 +559,7 @@ void TZXProcess() {
             PureDataBlock();
           }
         break;
-        /*
+        
         case ID15:
           //process ID15 - Direct Recording
           if(currentBlockTask==READPARAM) {
@@ -316,32 +581,48 @@ void TZXProcess() {
             }
             currentBlockTask=DATA;
           } else {
+            currentPeriod = TstatesperSample;
+            bitSet(currentPeriod, 14);
             DirectRecording();
           }
         break;
-        */
 
-      /*  //Old ID20
-        case ID20:
-          //process ID20 - Pause Block
-          if(r=ReadWord(bytesRead)==2) {
-            if(outWord>0) {
-              currentPeriod = pauseLength;
-              bitSet(currentPeriod, 15);
-            }
-            currentTask=GETID;
+        case ID19:
+          //Process ID19 - Generalized data block
+          switch (currentBlockTask) {
+            case READPARAM:
+        
+              if(r=ReadDword(bytesRead)==4) {
+                //bytesToRead = outLong;
+              }
+              if(r=ReadWord(bytesRead)==2) {
+                //Pause after this block in milliseconds
+                pauseLength = outWord;
+                
+              }
+              bytesRead += 86 ;  // skip until DataStream filename
+              //bytesToRead += -88 ;    // pauseLength + SYMDEFs
+              currentBlockTask=DATA;
+            break;
+        
+            case DATA:
+              
+              ZX8081DataBlock();
+              
+            break;
           }
-        break; */     
+        break;
+
         
         case ID20:
           //process ID20 - Pause Block
           if(r=ReadWord(bytesRead)==2) {
             if(outWord>0) {
-				temppause = outWord;
-				currentID = IDPAUSE;
+              temppause = outWord;
+              currentID = IDPAUSE;
             } else {
-				currentTask = GETID;
-			}
+              currentTask = GETID;
+            }
           }
         break;
 
@@ -381,7 +662,12 @@ void TZXProcess() {
           bytesRead+=4;
           currentTask = GETID;
         break;
-        
+
+        case ID2B:
+          //Skip//
+          bytesRead+=5;
+          currentTask = GETID;
+        break;
         
         case ID30:
           //Process ID30 - Text Description
@@ -399,14 +685,16 @@ void TZXProcess() {
         break;
 
         case ID31:
-          //Process ID31 - Message
-          //Block Skipped because pointless
-          if(ReadWord(bytesRead)==2) {
-            bytesRead += outWord;
+          //Process ID31 - Message block
+           if(r=ReadByte(bytesRead)==1) {
+            // dispayTime = outByte;
+          }         
+          if(r=ReadByte(bytesRead)==1) {
+            bytesRead += outByte;
           }
           currentTask = GETID;
         break;
-        
+
         case ID32:
           //Process ID32 - Archive Info
           //Block Skipped until larger screen used
@@ -428,12 +716,92 @@ void TZXProcess() {
         case ID35:
           //Process ID35 - Custom Info Block
           //Block Skipped
-          bytesRead += 10;
+          bytesRead += 0x10;
           if(r=ReadDword(bytesRead)==4) {
             bytesRead += outLong;
           }
+          currentTask = GETID;
         break;
         
+        case ID4B:
+          //Process ID4B - Kansas City Block (MSX specific implementation only)
+          switch(currentBlockTask) {
+            case READPARAM:
+              if(r=ReadDword(bytesRead)==4) {  // Data size to read
+                bytesToRead = outLong - 12;
+              }
+              if(r=ReadWord(bytesRead)==2) {  // Pause after block in ms
+                pauseLength = outWord;
+              }
+              if (TSXspeedup == 0){
+                  if(r=ReadWord(bytesRead)==2) {  // T-states each pilot pulse
+                    pilotLength = TickToUs(outWord);
+                  }
+                  if(r=ReadWord(bytesRead)==2) {  // Number of pilot pulses
+                    pilotPulses = outWord;
+                  }
+                  if(r=ReadWord(bytesRead)==2) {  // T-states 0 bit pulse
+                    zeroPulse = TickToUs(outWord);
+                  }
+                  if(r=ReadWord(bytesRead)==2) {  // T-states 1 bit pulse
+                    onePulse = TickToUs(outWord);
+                  }
+                  ReadWord(bytesRead);
+              } else {
+                  //Fixed speedup baudrate, reduced pilot duration
+                  pilotPulses = 10000;
+                  bytesRead += 10;
+                  switch(BAUDRATE){
+                    
+                    case 1200:
+                      pilotLength = onePulse = TickToUs(729);
+                      zeroPulse = TickToUs(1458);                       
+                      break;
+                                          
+                    case 2400:
+                      pilotLength = onePulse = TickToUs(365);
+                      zeroPulse = TickToUs(730);      
+                      break;
+                    
+                    case 3600:
+                      pilotLength = onePulse = TickToUs(243);
+                      zeroPulse = TickToUs(486);      
+                      break;
+                      
+                    case 3760:
+                      pilotLength = onePulse = TickToUs(233);
+                      zeroPulse = TickToUs(466);   
+                      break;
+                  }
+               
+              } //TSX_SPEEDUP
+
+
+              currentBlockTask = PILOT;
+            break;
+
+            case PILOT:
+                //Start with Pilot Pulses
+                if (!pilotPulses--) {
+                  currentBlockTask = DATA;
+                } else {
+                  currentPeriod = pilotLength;
+                }
+            break;
+        
+            case DATA:
+                //Data playback
+                writeData4B();
+            break;
+            
+            case PAUSE:
+                //Close block with a pause
+                temppause = pauseLength;
+                currentID = IDPAUSE;
+            break;
+          }
+        break;
+
         case TAP:
           //Pure Tap file block
           switch(currentBlockTask) {
@@ -538,28 +906,122 @@ void TZXProcess() {
             break;
           }  
         break;
+
+        case ORIC:  
+              //ReadByte(bytesRead);  
+              //OricByteWrite();  
+            switch(currentBlockTask) {              
+              case READPARAM: // currentBit = 0 y count = 255 
+              case SYNC1: 
+                  if (currentBit >0) OricBitWrite();  
+                  else {  
+                       //if (count >0) {      
+                          ReadByte(bytesRead);currentByte=outByte;currentBit = 11; bitChecksum = 0;lastByte=0;  
+                          if (currentByte==0x16) count--; 
+                          else {currentBit = 0; currentBlockTask=SYNC2;} //0x24 
+                       //}  
+                       //else currentBlockTask=SYNC2; 
+                  }           
+                  break;  
+              case SYNC2:     
+                  if(currentBit >0) OricBitWrite();               
+                  else {  
+                        if (count >0) {currentByte=0x16; currentBit = 11; bitChecksum = 0;lastByte=0; count--;} 
+                        else {count=1; currentBlockTask=SYNCLAST;} //0x24   
+                  } 
+                  break;  
+                    
+              case SYNCLAST:    
+                  if(currentBit >0) OricBitWrite();               
+                  else {  
+                        if (count >0) {currentByte=0x24; currentBit = 11; bitChecksum = 0;lastByte=0; count--;}   
+                        else {count=9;lastByte=0;currentBlockTask=HEADER;}  
+                  } 
+                  break;  
+                          
+              case HEADER:              
+                  if(currentBit >0) OricBitWrite(); 
+                  else {  
+                        if  (count >0) {  
+                          ReadByte(bytesRead);currentByte=outByte;currentBit = 11; bitChecksum = 0;lastByte=0;                                          
+                          if      (count == 5) bytesToRead = 256*outByte; 
+                          else if (count == 4) bytesToRead += (outByte +1) ;  
+                          else if (count == 3) bytesToRead -= (256 * outByte) ; 
+                          else if (count == 2) bytesToRead -= outByte;  
+                          count--;  
+                        } 
+                        else currentBlockTask=NAME; 
+                  } 
+                  break;  
+                    
+              case NAME:  
+                  if (currentBit >0) OricBitWrite();  
+                  else {  
+                    ReadByte(bytesRead);currentByte=outByte;currentBit = 11; bitChecksum = 0;lastByte=0;  
+                    if (currentByte==0x00) {count=1;currentBit = 0; currentBlockTask=NAMELAST;} 
+                  }                 
+                  break;  
+                    
+               case NAMELAST: 
+                  if(currentBit >0) OricBitWrite();               
+                  else {  
+                        if (count >0) {currentByte=0x00; currentBit = 11; bitChecksum = 0;lastByte=0; count--;}   
+                        else {count=100;lastByte=0;currentBlockTask=GAP;} 
+                  } 
+                  break;  
+                                          
+              case GAP: 
+                  if(count>0) { 
+                    currentPeriod = ORICONEPULSE; 
+                    count--;  
+                  } else {    
+                    currentBlockTask=DATA;  
+                  }               
+                  break;  
+                              
+              case DATA:  
+                  OricDataBlock();  
+                  break;  
+                    
+              case PAUSE: 
+                  //currentPeriod = 100; // 100ms pause 
+                  //bitSet(currentPeriod, 15);  
+                  if(!count==0) { 
+                    currentPeriod = 32769;  
+                    count += -1;  
+                  } else {  
+                    count= 255; 
+                    currentBlockTask=SYNC1; 
+                  } 
+                  break;                  
+            } 
+            break;  
+  
         
-		case IDPAUSE:
-			if(temppause>0) {
-				if(temppause > 8000) {
-					//Serial.println(temppause, DEC);
-					currentPeriod = 8000;
-					temppause += -8000;					
-				} else {
-					currentPeriod = temppause;
-					temppause = 0;
-				}
-				bitSet(currentPeriod, 15);
-			} else {
-				currentTask = GETID;
-				if(EndOfFile==true) currentID=EOF;	
-			}
-		break;
-		
+        case IDPAUSE:
+                   
+          if(temppause>0) {
+            if(temppause > 8300) {
+              //Serial.println(temppause, DEC);
+              currentPeriod = 8300;
+              temppause += -8300;         
+            } else {
+              currentPeriod = temppause;
+              temppause = 0;
+            }
+            bitSet(currentPeriod, 15);
+          } else {
+            currentTask = GETID;
+            if(EndOfFile==true) currentID=EOF;  
+          } 
+        break;
+    
         case EOF:
           //Handle end of file
           if(!count==0) {
-            currentPeriod = 32767;
+            //currentPeriod = 32767;
+            currentPeriod = 10;
+            //bitSet(currentPeriod, 15); bitSet(currentPeriod, 12);
             count += -1;
           } else {
             stopFile();
@@ -581,17 +1043,33 @@ void TZXProcess() {
             lcd.print(String(bytesRead,HEX) + " - L: " + String(loopCount, DEC));
           #endif
 
+          #ifdef RGBLCD
+            lcd.clear();
+            lcd.setCursor(0,0);
+            lcd.print("ID? ");
+            lcd.setCursor(4,0);
+            lcd.print(String(currentID, HEX));
+            lcd.setCursor(0,1);
+            lcd.print(String(bytesRead,HEX) + " - L: " + String(loopCount, DEC));
+          #endif
+
           #ifdef OLED1306
-             
-              u8g.firstPage();
-              do {  
-                  u8g.drawStr ( 0, 15, "ID? ");
-                  u8g.setPrintPos(40, 15); 
-                  u8g.print(String(currentID, HEX));
-                  u8g.setPrintPos(0, 30); 
-                  u8g.print(String(bytesRead,HEX) + " - L: " + String(loopCount, DEC));
-              } while( u8g.nextPage() );
+              printtextF(PSTR("ID? "),0);
+              itoa(currentID,PlayBytes,16);sendStrXY(PlayBytes,4,0);
+              itoa(bytesRead,PlayBytes,16);strcat_P(PlayBytes,PSTR(" - L: "));printtext(PlayBytes,1);
+              itoa(loopCount,PlayBytes,10);sendStrXY(PlayBytes,10,1);
+
           #endif 
+          
+          #ifdef P8544             
+            lcd.clear();
+            lcd.setCursor(0,0);
+            lcd.print("ID? ");
+            lcd.setCursor(4,0);
+            lcd.print(String(currentID, HEX));
+            lcd.setCursor(0,1);
+            lcd.print(String(bytesRead,HEX) + " - L: " + String(loopCount, DEC));
+          #endif  
   
           delay(5000);
           stopFile();
@@ -640,18 +1118,19 @@ void StandardBlock() {
             
  
       if((currentID!=TAP)&&(currentID!=AYO)) {                  // Check if we have !=AYO too
-		temppause = pauseLength;
+    temppause = pauseLength;
         currentID = IDPAUSE;
       } else {
-		currentPeriod = pauseLength;
-		bitSet(currentPeriod, 15);
+    currentPeriod = pauseLength;
+    bitSet(currentPeriod, 15);
         currentBlockTask = READPARAM;
-		
+    
       }
       if(EndOfFile==true) currentID=EOF;
     break;
   }
 }
+
 
 void PureToneBlock() {
   //Pure Tone Block - Long string of pulses with the same length
@@ -684,21 +1163,84 @@ void PureDataBlock() {
     
     case PAUSE:
       temppause = pauseLength;
-	  currentID = IDPAUSE;
+    currentID = IDPAUSE;
     break;
   }
+}
+
+
+
+void writeData4B() {
+  //Convert byte (4B Block) from file into string of pulses.  One pulse per pass
+  byte r;
+  byte dataBit;
+    
+  //Continue with current byte
+  if (currentBit>0) {
+
+    //Start bit (0)
+    if (currentBit==11) {
+      currentPeriod = zeroPulse;
+      pass+=1;
+      if (pass==2) {
+        currentBit += -1;
+        pass = 0;
+      }
+    } else
+    //Stop bits (1)
+    if (currentBit<=2) {
+      currentPeriod = onePulse;
+      pass+=1;
+      if (pass==4) {
+        currentBit += -1;
+        pass = 0;
+      }
+    } else
+    //Data bits
+    {
+      dataBit = currentByte & 1;
+      currentPeriod = dataBit==1 ? onePulse : zeroPulse;
+      pass+=1;
+      if ((dataBit==1 && pass==4) || (dataBit==0 && pass==2)) {
+        currentByte >>= 1;
+        currentBit += -1;
+        pass = 0;
+      }
+    }
+  }
+  else
+  if (currentBit==0 && bytesToRead!=0) {
+    //Read new byte
+    if (r=ReadByte(bytesRead)==1) {
+      bytesToRead += -1; 
+      currentByte = outByte;
+      currentBit = 11;
+      pass = 0;
+    } else if (r==0) {
+      //End of file
+      currentID=EOF;
+      return;
+    }
+  }
+  
+  //End of block?
+  if (bytesToRead==0 && currentBit==0) {
+    temppause = pauseLength;
+    currentBlockTask = PAUSE;
+  }
+  
 }
 
 void DirectRecording() {
   //Direct Recording - Output bits based on specified sample rate (Ticks per clock) either 44.1KHz or 22.05
   switch(currentBlockTask) {
     case DATA:
-      writeData();          
+      writeSampleData();          
     break;
     
     case PAUSE:
       temppause = pauseLength;
-	  currentID = IDPAUSE;
+    currentID = IDPAUSE;
     break;
   }
 }
@@ -706,7 +1248,8 @@ void DirectRecording() {
 void ZX81FilenameBlock() {
   //output ZX81 filename data  byte r;
   if(currentBit==0) {                         //Check for byte end/first byte
-      currentByte=ZX81Filename[currentChar];
+      //currentByte=ZX81Filename[currentChar];
+      currentByte = pgm_read_byte(ZX81Filename+currentChar);
       currentChar+=1;
       if(currentChar==10) {
         currentBlockTask = DATA;
@@ -737,26 +1280,21 @@ void ZX8081DataBlock() {
   byte r;
   if(currentBit==0) {                         //Check for byte end/first byte
     if(r=ReadByte(bytesRead)==1) {            //Read in a byte
-      currentByte = outByte;
-      bytesToRead += -1;
-      /*if(bytesToRead == 0) {                  //Check for end of data block
-        bytesRead += -1;                      //rewind a byte if we've reached the end
-        if(pauseLength==0) {                  //Search for next ID if there is no pause
-          currentTask = GETID;
-        } else {
-          currentBlockTask = PAUSE;           //Otherwise start the pause
-        }
-        return;
-      }*/
+      currentByte = outByte;     
+        bytesToRead += -1;
+         
+          
     } else if(r==0) {
-      EndOfFile=true;
+      //EndOfFile=true;
+      //temppause = 3000;
       temppause = pauseLength;
-	  currentID = IDPAUSE;
-      return;
+      currentID = IDPAUSE;
+      //return;
     }
     currentBit=9;
     pass=0;
   }
+  
   /*currentPeriod = ZX80PULSE;
   if(pass==1) {
     currentPeriod=ZX80BITGAP;
@@ -775,10 +1313,19 @@ void ZX8081DataBlock() {
   ZX80ByteWrite();
 }
 
+
 void ZX80ByteWrite(){
+  if (uefTurboMode==1){
+    currentPeriod = ZX80TURBOPULSE;
+  if(pass==1) {
+    currentPeriod=ZX80TURBOBITGAP;
+  }
+  }
+  else {
   currentPeriod = ZX80PULSE;
   if(pass==1) {
     currentPeriod=ZX80BITGAP;
+  }
   }
   if(pass==0) {
     if(currentByte&0x80) {                       //Set next period depending on value of bit 0
@@ -793,6 +1340,9 @@ void ZX80ByteWrite(){
   pass+=-1;
     
 }
+
+
+
 
 void writeData() {
   //Convert byte from file into string of pulses.  One pulse per pass
@@ -865,7 +1415,8 @@ void writeHeader() {
     }
     hdrptr += 1;                   // increase header string vector pointer
     if(hdrptr<20) {                     //Read a byte until we reach end of tap header
-      currentByte = TAPHdr[hdrptr];
+      //currentByte = TAPHdr[hdrptr];
+       currentByte = pgm_read_byte(TAPHdr+hdrptr);
       if(hdrptr==13){                           // insert calculated block length minus LEN bytes
             currentByte = lowByte(ayblklen-3);
       } else if(hdrptr==14){
@@ -896,14 +1447,14 @@ void writeHeader() {
 
 void wave() {
   //ISR Output routine
-  unsigned long fudgeTime = micros();         //fudgeTime is used to reduce length of the next period by the time taken to process the ISR
+  //unsigned long fudgeTime = micros();         //fudgeTime is used to reduce length of the next period by the time taken to process the ISR
   word workingPeriod = wbuffer[pos][workingBuffer];
   byte pauseFlipBit = false;
   unsigned long newTime=1;
   intError = false;
   if(isStopped==0 && workingPeriod >= 1)
   {
-      if(bitRead(workingPeriod, 15))          
+      if bitRead(workingPeriod, 15)          
       {
         //If bit 15 of the current period is set we're about to run a pause
         //Pauses start with a 1.5ms where the output is untouched after which the output is set LOW
@@ -914,16 +1465,49 @@ void wave() {
         pauseFlipBit = true;
         wasPauseBlock = true;
       } else {
-        if(workingPeriod >= 1 && wasPauseBlock==false) {
+         if(workingPeriod >= 1 && wasPauseBlock==false) {
           pinState = !pinState;
         } else if (wasPauseBlock==true && isPauseBlock==false) {
           wasPauseBlock=false;
         }
+        //if (wasPauseBlock==true && isPauseBlock==false) wasPauseBlock=false; 
       }
-      digitalWrite(outputPin, pinState);
+      
+      if (ID15switch == 1){
+      if (bitRead(workingPeriod, 14)== 0) {
+        //pinState = !pinState;
+        if (pinState == LOW)     LowWrite(PORTB, PORTB1);    
+        else  HighWrite(PORTB, PORTB1);
+       } else {
+        if (bitRead(workingPeriod, 13) == 0)     LowWrite(PORTB, PORTB1);    
+        else  {
+          HighWrite(PORTB, PORTB1); 
+          bitClear(workingPeriod,13);}     
+          bitClear(workingPeriod,14);         //Clear ID15 flag
+          workingPeriod = TstatesperSample;
+                      
+      }
+      } 
+      else {
+        //pinState = !pinState;
+        if(pinState==LOW) {
+        LowWrite(PORTB, PORTB1);}
+        else
+        {
+          HighWrite(PORTB, PORTB1); }
+      }
+      
+      
+      //digitalWrite(outputPin, pinState);
+      
       if(pauseFlipBit==true) {
         newTime = 1500;                     //Set 1.5ms initial pause block
-        pinState = LOW;                     //Set next pinstate LOW
+        //pinState = LOW;                     //Set next pinstate LOW
+        if (FlipPolarity==0) {
+          pinState = LOW;
+        } else {
+          pinState = HIGH;
+        }
         wbuffer[pos][workingBuffer] = workingPeriod - 1;  //reduce pause by 1ms as we've already pause for 1.5ms
         pauseFlipBit=false;
       } else {
@@ -952,9 +1536,10 @@ void wave() {
   } else {
     newTime = 1000000;                         //Just in case we have a 0 in the buffer
   }
-  newTime += 12;
-  fudgeTime = micros() - fudgeTime;         //Compensate for stupidly long ISR
-  Timer1.setPeriod(newTime - fudgeTime);    //Finally set the next pulse length
+  //newTime += 12;
+  //fudgeTime = micros() - fudgeTime;         //Compensate for stupidly long ISR
+  //Timer1.setPeriod(newTime - fudgeTime);    //Finally set the next pulse length
+  Timer1.setPeriod(newTime +4);    //Finally set the next pulse length
 }
 
 int ReadByte(unsigned long pos) {
@@ -991,7 +1576,8 @@ int ReadLong(unsigned long pos) {
     i = entry.read(out,3);
     if(i==3) bytesRead += 3;
   }
-  outLong = (word(out[2],out[1]) << 8) | out[0];
+  outLong = ((unsigned long) word(out[2],out[1]) << 8) | out[0];
+  //outLong = (word(out[2],out[1]) << 8) | out[0];
   //blkchksum = blkchksum ^ out[0] ^ out[1] ^ out[2];
   return i;
 }
@@ -1004,7 +1590,8 @@ int ReadDword(unsigned long pos) {
     i = entry.read(out,4);
     if(i==4) bytesRead += 4;
   }
-  outLong = (word(out[3],out[2]) << 16) | word(out[1],out[0]);
+  outLong = ((unsigned long) word(out[3],out[2]) << 16) | word(out[1],out[0]);
+  //outLong = (word(out[3],out[2]) << 16) | word(out[1],out[0]);
   //blkchksum = blkchksum ^ out[0] ^ out[1] ^ out[2] ^ out[3];
   return i;
 }
@@ -1016,12 +1603,16 @@ void ReadTZXHeader() {
   
   if(entry.seekSet(0)) {
     i = entry.read(tzxHeader,10);
-    if(memcmp(tzxHeader,TZXTape,7)!=0) {
-      printtext("Not TZXTape",1);
+    if(memcmp_P(tzxHeader,TZXTape,7)!=0) {
+      printtextF(PSTR("Not TZXTape"),1);
+      //lcd_clearline(1);
+      //lcd.print(F("Not TZXTape"));     
       TZXStop();
     }
   } else {
-    printtext("Error Reading File",0);
+    printtextF(PSTR("Error Reading File"),0);
+    //lcd_clearline(0);
+    //lcd.print(F("Error Reading File"));        
   }
   bytesRead = 10;
 }
@@ -1033,13 +1624,71 @@ void ReadAYHeader() {
   
   if(entry.seekSet(0)) {
     i = entry.read(ayHeader,8);
-    if(memcmp(ayHeader,AYFile,8)!=0) {
-      printtext("Not AY File",1);
+    if(memcmp_P(ayHeader,AYFile,8)!=0) {
+      printtextF(PSTR("Not AY File"),1);
+      //lcd_clearline(0);
+      //lcd.print(F("Not AY File"));    
       TZXStop();
     }
   } else {
-    printtext("Error Reading File",0);
+    printtextF(PSTR("Error Reading File"),0);
+    //lcd_clearline(0);
+    //lcd.print(F("Error Reading File"));    
   }
   bytesRead = 0;
 }
 
+
+void writeSampleData() {
+  //Convert byte from file into string of pulses.  One pulse per pass
+  byte r;
+  ID15switch = 1;
+  if(currentBit==0) {                         //Check for byte end/first byte
+    if(r=ReadByte(bytesRead)==1) {            //Read in a byte
+      currentByte = outByte;
+      bytesToRead += -1;
+      if(bytesToRead == 0) {                  //Check for end of data block
+        bytesRead += -1;                      //rewind a byte if we've reached the end
+        if(pauseLength==0) {                  //Search for next ID if there is no pause
+          currentTask = GETID;
+        } else {
+          currentBlockTask = PAUSE;           //Otherwise start the pause
+        }
+        return;
+      }
+    } else if(r==0) {
+      EndOfFile=true;
+      if(pauseLength==0) {
+        //ID15switch = 0;
+        currentTask = GETID;
+      } else {
+        currentBlockTask = PAUSE;
+      }
+      return;
+    }
+    if(bytesToRead!=1) {                      //If we're not reading the last byte play all 8 bits
+      currentBit=8;
+    } else {
+      currentBit=usedBitsInLastByte;          //Otherwise only play back the bits needed
+    }
+    pass=0;
+  } 
+ if bitRead(currentPeriod, 14) {
+    //bitWrite(currentPeriod,13,currentByte&0x80);
+    if(currentByte&0x80) bitSet(currentPeriod, 13);
+    pass+=2;
+  }
+  else {
+    if(currentByte&0x80){                       //Set next period depending on value of bit 0
+        currentPeriod = onePulse;
+      } else {
+        currentPeriod = zeroPulse;
+      }
+      pass+=1;
+}
+if(pass==2) {
+    currentByte <<= 1;                        //Shift along to the next bit
+    currentBit += -1;
+    pass=0;  
+  }
+}
