@@ -13,5 +13,7 @@ This branch contains my changes to support the Seeeduino Xiao M0 device, which I
 
 While I continue to work on the Seeeduino Xiao M0 device, I do plan to merge the other changes into master, as those are pretty much complete.
 
+See [README_seeeduino_xiao_m0.md](README_seeeduino_xiao_m0.md)
+
 ## Credits
 Code and Testing: Andrew Beer & Duncan Edwards
