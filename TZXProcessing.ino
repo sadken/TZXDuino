@@ -1019,8 +1019,8 @@ void TZXProcess() {
         case EOF:
           //Handle end of file
           if(!count==0) {
-            //currentPeriod = 32767;
-            currentPeriod = 10;
+            currentPeriod = 32767;
+            //currentPeriod = 2000;
             //bitSet(currentPeriod, 15); bitSet(currentPeriod, 12);
             count += -1;
           } else {

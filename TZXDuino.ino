@@ -83,7 +83,7 @@
 #include "TZXDuino.h"
 #include "userconfig.h"
 
-#define VERSION "TZXDuino 1.18"
+#define VERSION "TZXDuino 1.19"
 
 
 #ifdef LCDSCREEN16x2
@@ -145,11 +145,16 @@ SdFat sd;                           //Initialise Sd card
 
 SdFile entry;                       //SD card file
 
-#define filenameLength    100       //Maximum length for scrolling filename
+#define subdirLength     22         // hasta 62 no incrementa el consumo de RAM
+#define filenameLength   4*subdirLength  //Maximum length for scrolling filename, hasta 255 no incrementa consumo RAM
+
+//#define filenameLength    100       //Maximum length for scrolling filename
 
 char fileName[filenameLength + 1];    //Current filename
 char sfileName[13];                 //Short filename variable
-char prevSubDir[3][25];
+//char prevSubDir[5][25];
+char prevSubDir[4][subdirLength];
+int DirFilePos[4];                   //File Positios in Directory to be restored
 int subdir = 0;
 unsigned long filesize;             // filesize used for dimensioning AY files
 const int chipSelect = 10;          //Sd card chip select pin
@@ -178,7 +183,8 @@ unsigned long timeDiff = 0;         //button debounce
 int browseDelay = 500;              // Delay between up/down navigation
 
 byte UP = 0;                      //Next File, down button pressed
-char PlayBytes[16];
+//char PlayBytes[16];
+char PlayBytes[subdirLength];
 
 
 void setup() {
@@ -356,7 +362,7 @@ void loop(void) {
        }       
      }
      if(digitalRead(btnStop)==LOW && start==0 && subdir >0) {  
-       fileName[0]='\0';
+       /*fileName[0]='\0';
        prevSubDir[subdir-1][0]='\0';
        subdir--;
        switch(subdir){
@@ -371,11 +377,51 @@ void loop(void) {
        case 3:
            //sprintf(fileName,"%s%s/%s/%s",prevSubDir[0],prevSubDir[1],prevSubDir[2],prevSubDir[3]);
           sd.chdir(strcat(strcat(strcat(strcat(strcat(strcat(fileName,"/"),prevSubDir[0]),"/"),prevSubDir[1]),"/"),prevSubDir[2]),true); 
+           break;
+        case 4:
+           //sprintf(fileName,"%s%s/%s/%s",prevSubDir[0],prevSubDir[1],prevSubDir[2],prevSubDir[3]);
+          sd.chdir(strcat(strcat(strcat(strcat(strcat(strcat(strcat(strcat(fileName,"/"),prevSubDir[0]),"/"),prevSubDir[1]),"/"),prevSubDir[2]),"/"),prevSubDir[3]),true); 
+           break;
+        case 5:
+           //sprintf(fileName,"%s%s/%s/%s",prevSubDir[0],prevSubDir[1],prevSubDir[2],prevSubDir[3]);
+          sd.chdir(strcat(strcat(strcat(strcat(strcat(strcat(strcat(strcat(fileName,"/"),prevSubDir[0]),"/"),prevSubDir[1]),"/"),prevSubDir[2]),"/"),prevSubDir[3]),true); 
            break;          
         default: 
            //sprintf(fileName,"%s",prevSubDir[0]);
            sd.chdir("/",true);
+       }*/
+       fileName[0]='\0';
+       subdir--;
+       prevSubDir[subdir][0]='\0';     
+       switch(subdir){
+        case 0:
+           //sprintf(fileName,"%s",prevSubDir[0]);
+           sd.chdir("/");
+           break;
+        case 1:
+           //sprintf(fileName,"%s%s",prevSubDir[0],prevSubDir[1]);
+           sd.chdir(strcat(strcat(fileName,"/"),prevSubDir[0]));
+           break;
+        case 2:
+        //default:
+           //sprintf(fileName,"%s%s/%s",prevSubDir[0],prevSubDir[1],prevSubDir[2]);
+           subdir = 2;
+           sd.chdir(strcat(strcat(strcat(strcat(fileName,"/"),prevSubDir[0]),"/"),prevSubDir[1]));
+           break;
+       case 3:
+       default:
+           //sprintf(fileName,"%s%s/%s/%s",prevSubDir[0],prevSubDir[1],prevSubDir[2],prevSubDir[3]);
+           subdir = 3;
+           sd.chdir(strcat(strcat(strcat(strcat(strcat(strcat(fileName,"/"),prevSubDir[0]),"/"),prevSubDir[1]),"/"),prevSubDir[2]),true); 
+           break; 
+       /*case 4:
+       default:
+           //sprintf(fileName,"%s%s/%s/%s",prevSubDir[0],prevSubDir[1],prevSubDir[2],prevSubDir[3]);
+           subdir = 4;
+           sd.chdir(strcat(strcat(strcat(strcat(strcat(strcat(strcat(strcat(fileName,"/"),prevSubDir[0]),"/"),prevSubDir[1]),"/"),prevSubDir[2]),"/"),prevSubDir[3]),true); 
+           break; */        
        }
+       
        //Return to prev Dir of the SD card.
        //sd.chdir(fileName,true);
        //sd.chdir("/CDT");       
@@ -611,8 +657,16 @@ void changeDir() {
     subdir=0;    
     sd.chdir(true);
   } else {
-     if (subdir >0) entry.cwd()->getName(prevSubDir[subdir-1],filenameLength); // Antes de cambiar  
+     //if (subdir >0) entry.cwd()->getName(prevSubDir[subdir-1],filenameLength); // Antes de cambiar  
+     DirFilePos[subdir] = currentFile;
      sd.chdir(fileName, true);
+     if (strlen(fileName) > subdirLength) {
+      //entry.getSFN(sfileName);
+      strcpy(prevSubDir[subdir], sfileName);
+     }
+     else {
+      strcpy(prevSubDir[subdir], fileName);
+     }
      subdir++;      
   }
   getMaxFile();
