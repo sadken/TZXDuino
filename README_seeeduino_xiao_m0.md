@@ -36,20 +36,20 @@ I've mapped this to PIN A3, and I've chosen my resistors to be 0Ohm, 1K, 2.4K, 1
 
 # Peripherals and connections
 
-0: RESERVED for play/ffwd/rwd detecting enhancemenet (reflectometer 1 strobe out (play/ffwd spindle)) 
-1: RESERVED for play/ffwd/rwd detecting enhancemenet (reflectometer 2 strobe out (rwd spindle))
-2: CS for SD CARD (SPI)
-3: ADC for buttons (hopefully also reflectometer 1/2 return)
-4: RESERVED for audio input (direct recording to SD - future enhancement)
-5: SCK I2C for OLED
-6: SDA I2C for OLED
-7: Audio Output (hardwire to cassette head)
-8: CLK for SD CARD (SPI)
-9: MISO for SD CARD (SPI)
-10: MOSI for SD CARD (SPI)
-11: 3v3 (in from external LiPo DC stepdown; out to peripherals)
-12: GND
-13: 5v (present when USB connected; out to LiPo charger TP4056)
+0.  RESERVED for play/ffwd/rwd detecting enhancemenet (reflectometer 1 strobe out (play/ffwd spindle)) 
+1.  RESERVED for play/ffwd/rwd detecting enhancemenet (reflectometer 2 strobe out (rwd spindle))
+2.  CS for SD CARD (SPI)
+3.  ADC for buttons (hopefully also reflectometer 1/2 return)
+4.  RESERVED for audio input (direct recording to SD - future enhancement)
+5.  SCK I2C for OLED
+6.  SDA I2C for OLED
+7.  Audio Output (hardwire to cassette head)
+8.  CLK for SD CARD (SPI)
+9.  MISO for SD CARD (SPI)
+10.  MOSI for SD CARD (SPI)
+11.  3v3 (in from external LiPo DC stepdown; out to peripherals)
+12.  GND
+13.  5v (present when USB connected; out to LiPo charger TP4056)
 
 ## SD CARD READER
 I'm using one that natively supports 3v3 and picked the smallest I could find.  I intend to cut it down even further with a saw (because I am not using SDIO, and that chip on the right is just some resistors that I could add externally)
