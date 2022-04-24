@@ -33,3 +33,35 @@ I've mapped this to PIN A3, and I've chosen my resistors to be 0Ohm, 1K, 2.4K, 1
 * Down button: 50% Vcc
 * Up button: 33% Vcc
 
+
+# Peripherals and connections
+
+0: RESERVED for play/ffwd/rwd detecting enhancemenet (reflectometer 1 strobe out (play/ffwd spindle)) 
+1: RESERVED for play/ffwd/rwd detecting enhancemenet (reflectometer 2 strobe out (rwd spindle))
+2: CS for SD CARD (SPI)
+3: ADC for buttons (hopefully also reflectometer 1/2 return)
+4: RESERVED for audio input (direct recording to SD - future enhancement)
+5: SCK I2C for OLED
+6: SDA I2C for OLED
+7: Audio Output (hardwire to cassette head)
+8: CLK for SD CARD (SPI)
+9: MISO for SD CARD (SPI)
+10: MOSI for SD CARD (SPI)
+11: 3v3 (in from external LiPo DC stepdown; out to peripherals)
+12: GND
+13: 5v (present when USB connected; out to LiPo charger TP4056)
+
+## SD CARD READER
+I'm using one that natively supports 3v3 and picked the smallest I could find.  I intend to cut it down even further with a saw (because I am not using SDIO, and that chip on the right is just some resistors that I could add externally)
+https://www.adafruit.com/product/4682
+
+## OLED
+I'm using one of the many 'generic' OLED1306 modules, this one being 128x64
+
+## LiPo CHARGING / POWER CIRCUIT
+I'll write this up separately, probably in a Seeeduino forum.  I'm using a 'generic' TP4056 module connected to the Seeeduino 5v out (so it can charge the battery when the Xiao is plugged into a USB power source); the LiPo is connected to the TP4056 in the usual way but across the same terminals I have a tiny 3v3 step down "buck" device - the output of which is connected to the Seeeduino Xiao 3v3 line.
+I experimented quite a bit, and it seems to work, although I don't know if this is a good idea in an electrical sense.  3v3 is provided by both the Xiao's onboard stepdown (from 5v), and from the external 3v3 step down (from the battery), and those are tied together.  I think it's ok - the external step down doesn't seem to be generating any reverse current, so the only current flowing into the battery while charging should be coming from the TP4056.  If it blows up though, I'll have learned a lesson.
+The external step down is also the smallest/cheapest I could find: https://www.adafruit.com/product/4711
+The TP4056 is one that looks like this https://www.amazon.co.uk/AZDelivery-TP4056-Battery-Charger-Module/dp/B089QJZ3QP?th=1 but guess what, I don't need the USB socket at all (since I'm taking V_IN from the Xiao 5v line), so I can chop all that off and get the board about half the size.
+
+What I would *really like* to do is find a spare GPIO and monitor the battery voltage / charging voltage, but with no spare GPIOs I think I am out of luck unless I get very creative.
