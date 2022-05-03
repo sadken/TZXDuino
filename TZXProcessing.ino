@@ -51,16 +51,17 @@ void checkForEXT (char *filename) {
   }  
 }
 
-void TZXPlay(char *filename) {
+void TZXPlay() {
   Timer1.stop();                              //Stop timer interrupt
-  if(!entry.open(filename,O_READ)) {          //open file and check for errors
-    printtextF(PSTR("Error Opening File"),0);
-    //lcd_clearline(0);
-    //lcd.print(F("Error Opening File"));    
-  } 
+
+  // on entry, fileIndex is already pointing to the file entry you want to play
+  // and fileName has already been set accordingly
+  entry.close();
+  entry.open(&dir, fileIndex, O_RDONLY);
+ 
   bytesRead=0;                                //start of file
   currentTask=GETFILEHEADER;                  //First task: search for header
-  checkForEXT (filename);
+  checkForEXT (fileName);
   currentBlockTask = READPARAM;               //First block task is to read in parameters
   clearBuffer();
   isStopped=false;

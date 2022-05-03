@@ -24,5 +24,23 @@
 
 //#define TZXDuino_Logo  1
 
-
 //#define LCD_USE_1602_LCD_MODULE  1 /*Not used at the moment */
+
+// filesystem options
+#define maxFilenameLength   100       //Maximum length for long filename support (ideally as large as possible to support very long filenames)
+#define nMaxPrevSubDirs  20         //Number of parent directories to hold i.e. maximum depth of being able to navigate 'back up' through parent folders (ideally as large as possible to support deep file trees)
+
+// Test with reduced SPI speed for breadboards.  SD_SCK_MHZ(4) will select 
+// the highest speed supported by the board that is not over 4 MHz.
+// Change SPI_SPEED to SPI_FULL_SPEED or SD_SCK_MHZ(50) for best performance.
+//#define SPI_SPEED SD_SCK_MHZ(4)
+#define SPI_SPEED SPI_FULL_SPEED
+
+// support exFat?
+// SD_INCLUDE_EXFAT_SUPPORT
+// set to 1 to include exfat, 0 to exclude exfat (fat16/fast32 only), or undefine to just automatically choose for you - based on available ram
+#define SD_INCLUDE_EXFAT_SUPPORT 0 // 0 or 1 .  0 means 'do not include exfat support', which will make the smallest firmware
+// SD_FAT_TYPE
+// Using the SD_INCLUDE_EXFAT_SUPPORT is preferred but if you want to use the SdFatConfig.h approach (as documented in sdfat docs)
+// or you want to hardcode the support type yourself (e.g. if you want ONLY exfat and no fat32 support) you can #define SD_FAT_TYPE directly
+//#define SD_FAT_TYPE 1 // 0 or 1 or 2 or 3 , see sdfat docs

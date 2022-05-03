@@ -77,7 +77,7 @@
  *                
   */
 
-#include <SdFat.h>
+#include "SdCardSetup.h"
 #include <TimerOne.h>
 #include <EEPROM.h>
 #include "TZXDuino.h"
@@ -141,21 +141,14 @@
   };
 #endif
 
-SdFat sd;                           //Initialise Sd card 
+SDTYPE sd;                          // Initialise SD card 
+FILETYPE entry, dir, tmpdir;        // SD card current file (=entry) and current directory (=dir) objects, plus one temporary
 
-SdFile entry;                       //SD card file
-
-#define subdirLength     22         // hasta 62 no incrementa el consumo de RAM
-#define filenameLength   4*subdirLength  //Maximum length for scrolling filename, hasta 255 no incrementa consumo RAM
-
-//#define filenameLength    100       //Maximum length for scrolling filename
-
-char fileName[filenameLength + 1];    //Current filename
-char sfileName[13];                 //Short filename variable
-//char prevSubDir[5][25];
-char prevSubDir[4][subdirLength];
-int DirFilePos[4];                   //File Positios in Directory to be restored
-int subdir = 0;
+char fileName[maxFilenameLength + 1];     //Current filename
+int fileNameLen;
+uint16_t fileIndex;                    //Index of current file, relative to current directory
+uint16_t prevSubDirIndex[nMaxPrevSubDirs];  //History when stepping into subdirectories (sequence of indexes of directory entries, relative to root)
+byte subdir = 0;
 unsigned long filesize;             // filesize used for dimensioning AY files
 const int chipSelect = 10;          //Sd card chip select pin
 
@@ -176,15 +169,12 @@ byte motorState = 1;                //Current motor control state
 byte oldMotorState = 1;             //Last motor control state
 byte start = 0;                     //Currently playing flag
 byte pauseOn = 0;                   //Pause state
-int currentFile = 1;                //Current position in directory
-int maxFile = 0;                    //Total number of files in directory
-byte isDir = 0;                     //Is the current file a directory
+uint16_t lastIndex = 0;             //Index of last file in current directory
+bool isDir = false;                     //Is the current file a directory
 unsigned long timeDiff = 0;         //button debounce
 int browseDelay = 500;              // Delay between up/down navigation
 
-byte UP = 0;                      //Next File, down button pressed
-//char PlayBytes[16];
-char PlayBytes[subdirLength];
+char PlayBytes[17];
 
 
 void setup() {
@@ -226,14 +216,13 @@ void setup() {
   
   
   pinMode(chipSelect, OUTPUT);      //Setup SD card chipselect pin
-  if (!sd.begin(chipSelect,SPI_FULL_SPEED)) {  
+  while (!sd.begin(chipSelect,SPI_SPEED)) {  
     //Start SD card and check it's working
     printtextF(PSTR("No SD Card"),0);
-    
-    return;
+    delay(1000);
   } 
   
-  sd.chdir();                       //set SD to root directory
+  dir.open("/");                    //set SD to root directory
   TZXSetup();                       //Setup TZX specific options
   
   //General Pin settings
@@ -268,11 +257,9 @@ void setup() {
   #endif
        
   getMaxFile();                     //get the total number of files in the directory
-  seekFile(currentFile);            //move to the first file in the directory
+  fileIndex=0;                      //move to the first file in the directory
+  seekFile();                       
   loadEEPROM();
-  
-  
-
 }
 
 void loop(void) {
@@ -362,73 +349,22 @@ void loop(void) {
        }       
      }
      if(digitalRead(btnStop)==LOW && start==0 && subdir >0) {  
-       /*fileName[0]='\0';
-       prevSubDir[subdir-1][0]='\0';
        subdir--;
-       switch(subdir){
-        case 1:
-           //sprintf(fileName,"%s%s",prevSubDir[0],prevSubDir[1]);
-           sd.chdir(strcat(strcat(fileName,"/"),prevSubDir[0]),true);
-           break;
-        case 2:
-           //sprintf(fileName,"%s%s/%s",prevSubDir[0],prevSubDir[1],prevSubDir[2]);
-           sd.chdir(strcat(strcat(strcat(strcat(fileName,"/"),prevSubDir[0]),"/"),prevSubDir[1]),true);
-           break;
-       case 3:
-           //sprintf(fileName,"%s%s/%s/%s",prevSubDir[0],prevSubDir[1],prevSubDir[2],prevSubDir[3]);
-          sd.chdir(strcat(strcat(strcat(strcat(strcat(strcat(fileName,"/"),prevSubDir[0]),"/"),prevSubDir[1]),"/"),prevSubDir[2]),true); 
-           break;
-        case 4:
-           //sprintf(fileName,"%s%s/%s/%s",prevSubDir[0],prevSubDir[1],prevSubDir[2],prevSubDir[3]);
-          sd.chdir(strcat(strcat(strcat(strcat(strcat(strcat(strcat(strcat(fileName,"/"),prevSubDir[0]),"/"),prevSubDir[1]),"/"),prevSubDir[2]),"/"),prevSubDir[3]),true); 
-           break;
-        case 5:
-           //sprintf(fileName,"%s%s/%s/%s",prevSubDir[0],prevSubDir[1],prevSubDir[2],prevSubDir[3]);
-          sd.chdir(strcat(strcat(strcat(strcat(strcat(strcat(strcat(strcat(fileName,"/"),prevSubDir[0]),"/"),prevSubDir[1]),"/"),prevSubDir[2]),"/"),prevSubDir[3]),true); 
-           break;          
-        default: 
-           //sprintf(fileName,"%s",prevSubDir[0]);
-           sd.chdir("/",true);
-       }*/
-       fileName[0]='\0';
-       subdir--;
-       prevSubDir[subdir][0]='\0';     
-       switch(subdir){
-        case 0:
-           //sprintf(fileName,"%s",prevSubDir[0]);
-           sd.chdir("/");
-           break;
-        case 1:
-           //sprintf(fileName,"%s%s",prevSubDir[0],prevSubDir[1]);
-           sd.chdir(strcat(strcat(fileName,"/"),prevSubDir[0]));
-           break;
-        case 2:
-        //default:
-           //sprintf(fileName,"%s%s/%s",prevSubDir[0],prevSubDir[1],prevSubDir[2]);
-           subdir = 2;
-           sd.chdir(strcat(strcat(strcat(strcat(fileName,"/"),prevSubDir[0]),"/"),prevSubDir[1]));
-           break;
-       case 3:
-       default:
-           //sprintf(fileName,"%s%s/%s/%s",prevSubDir[0],prevSubDir[1],prevSubDir[2],prevSubDir[3]);
-           subdir = 3;
-           sd.chdir(strcat(strcat(strcat(strcat(strcat(strcat(fileName,"/"),prevSubDir[0]),"/"),prevSubDir[1]),"/"),prevSubDir[2]),true); 
-           break; 
-       /*case 4:
-       default:
-           //sprintf(fileName,"%s%s/%s/%s",prevSubDir[0],prevSubDir[1],prevSubDir[2],prevSubDir[3]);
-           subdir = 4;
-           sd.chdir(strcat(strcat(strcat(strcat(strcat(strcat(strcat(strcat(fileName,"/"),prevSubDir[0]),"/"),prevSubDir[1]),"/"),prevSubDir[2]),"/"),prevSubDir[3]),true); 
-           break; */        
+       uint16_t this_directory=prevSubDirIndex[subdir];
+    
+       // get to parent folder via root (slow-ish but requires very little memory to keep a deep stack of parents)
+       dir.close();
+       dir.open("/");
+       for(int i=0; i<subdir; i++)
+       {
+         tmpdir.open(&dir, prevSubDirIndex[i], O_RDONLY);
+         dir = tmpdir;
+         tmpdir.close();
        }
-       
-       //Return to prev Dir of the SD card.
-       //sd.chdir(fileName,true);
-       //sd.chdir("/CDT");       
-       //printtext(prevDir,0); //debug back dir
+     
        getMaxFile();
-       currentFile=1;
-       seekFile(currentFile);  
+       fileIndex = this_directory;
+       seekFile();
        while(digitalRead(btnStop)==LOW) {
          //prevent button repeats by waiting until the button is released.
          delay(200);
@@ -527,43 +463,64 @@ void resetBrowseDelay() {
 }
 
 void upFile() {    
-  //move up a file in the directory
-  currentFile--;
-  if(currentFile<1) {
-    getMaxFile();
-    currentFile = maxFile;
+  // move up a file in the directory.
+  // find prior index, using fileIndex.
+  while(fileIndex!=0)
+  {
+    fileIndex--;
+    // fileindex might not point to a valid entry (since not all values are used)
+    // and we might need to go back a bit further
+    // Do this here, so that we only need this logic in one place
+    // and so we can make seekFile dumber
+    entry.close();
+    if (entry.open(&dir, fileIndex, O_RDONLY))
+    {
+      entry.close();
+      break;
+    }
   }
-  UP=1;   
-  seekFile(currentFile);
+
+  if(fileIndex==0)
+  {
+    // seek up wrapped - should now be reset to point to the last file
+    fileIndex = lastIndex;
+  }
+  seekFile();
 }
 
 void downFile() {    
   //move down a file in the directory
-  currentFile++;
-  if(currentFile>maxFile) { currentFile=1; }
-  UP=0;  
-  seekFile(currentFile);
+  if (fileIndex>=lastIndex)
+  {
+    // seek down wrapped - now 0
+    fileIndex=0;
+  }
+  else
+  {
+    fileIndex++;
+  }    
+  seekFile();
 }
 
-void seekFile(int pos) {    
+void seekFile() {
   //move to a set position in the directory, store the filename, and display the name on screen.
-  if (UP==1) {  
-    entry.cwd()->rewind();
-    for(int i=1;i<=currentFile-1;i++) {
-      entry.openNext(entry.cwd(),O_READ);
-      entry.close();
-    }
+  entry.close(); // precautionary, and seems harmelss if entry is already closed
+  if (!entry.open(&dir, fileIndex, O_RDONLY))
+  {
+    // if entry.open fails, when given an index, it seems to automatically adjust curPosition to the next good entry
+    // this means that we can just retry calling open, with the new index
+    fileIndex = dir.curPosition()/32-1;
+    entry.close();
+    entry.open(&dir, fileIndex, O_RDONLY);
   }
-
-  if (currentFile==1) {entry.cwd()->rewind();}
-  entry.openNext(entry.cwd(),O_READ);
-  entry.getName(fileName,filenameLength);
-  entry.getSFN(sfileName);
+  
+  entry.getName(fileName, maxFilenameLength);
+  fileNameLen = strlen(fileName);
   filesize = entry.fileSize();
   ayblklen = filesize + 3;  // add 3 file header, data byte and chksum byte to file length
-  if(entry.isDir() || !strcmp(sfileName, "ROOT")) { isDir=1; } else { isDir=0; }
+  isDir = (entry.isDir() || 0==strcmp(fileName, "ROOT"));
   entry.close();
-  
+
   PlayBytes[0]='\0'; 
   if (isDir==1) {
     strcat_P(PlayBytes,PSTR(VERSION));
@@ -581,6 +538,7 @@ void seekFile(int pos) {
 
   scrollPos=0;
   scrollText(fileName);
+  scrollTime=millis()+scrollWait;
 }
 
 void stopFile() {
@@ -599,79 +557,80 @@ void stopFile() {
 
 void playFile() {
   
-  if(isDir==1) {
+  if(isDir)
+  {
     //If selected file is a directory move into directory
     changeDir();
-  } else {
-    if(entry.cwd()->exists(sfileName)) {
-      printtextF(PSTR("Playing         "),0);    
-      scrollPos=0;
-      if (PauseAtStart == false) pauseOn = 0;
-      scrollText(fileName);
-      currpct=100;
-      lcdsegs=0;      
-      TZXPlay(sfileName);           //Load using the short filename
-        #ifdef P8544
-          lcd.gotoRc(3,38);
-          lcd.bitmap(Play, 1, 6);
-        #endif
-      start=1; 
-      if (PauseAtStart == true) {
-        printtextF(PSTR("Paused "),0);
-      #ifdef P8544                                        
-              lcd.gotoRc(3,38);
-              lcd.bitmap(Paused, 1, 6);
+  }
+  else if (fileName[0] == '\0') 
+  {
+    printtextF(PSTR("No File Selected"),1);
+    //lcd_clearline(1);
+    //lcd.print(F("No File Selected"));
+  }
+  else
+  {
+    printtextF(PSTR("Playing         "),0);    
+    scrollPos=0;
+    if (PauseAtStart == false) pauseOn = 0;
+    scrollText(fileName);
+    currpct=100;
+    lcdsegs=0;      
+    TZXPlay(); 
+      #ifdef P8544
+        lcd.gotoRc(3,38);
+        lcd.bitmap(Play, 1, 6);
+      #endif
+    start=1; 
+    if (PauseAtStart == true) {
+      printtextF(PSTR("Paused "),0);
+      #ifdef P8544
+        lcd.gotoRc(3,38);
+        lcd.bitmap(Play, 1, 6);
       #endif
       pauseOn = 1;
       TZXPause();
-      }       
-    } else {
-      printtextF(PSTR("No File Selected"),1);
-      //lcd_clearline(1);
-      //lcd.print(F("No File Selected"));
     }
   }
 }
 
 void getMaxFile() {    
-  //gets the total files in the current directory and stores the number in maxFile
-  
-  entry.cwd()->rewind();
-  maxFile=0;
-  while(entry.openNext(entry.cwd(),O_READ)) {
-    //entry.getName(fileName,filenameLength);
+  // gets the total files in the current directory and stores the number in maxFile
+  // and also gets the file index of the last file found in this directory
+  dir.rewind();
+  while(entry.openNext(&dir, O_RDONLY)) {
     entry.close();
-    maxFile++;
+    lastIndex = dir.curPosition()/32-1;
   }
-  entry.cwd()->rewind();
+
+  dir.rewind(); // precautionary but I think might be unnecessary since we're using fileIndex everywhere else now
 }
-
-
 
 void changeDir() {    
   //change directory, if fileName="ROOT" then return to the root directory
   //SDFat has no easy way to move up a directory, so returning to root is the easiest way. 
   //each directory (except the root) must have a file called ROOT (no extension)
-                      
-  if(!strcmp(fileName, "ROOT")) {
+  if(!strcmp(fileName, "ROOT"))
+  {
     subdir=0;    
-    sd.chdir(true);
-  } else {
-     //if (subdir >0) entry.cwd()->getName(prevSubDir[subdir-1],filenameLength); // Antes de cambiar  
-     DirFilePos[subdir] = currentFile;
-     sd.chdir(fileName, true);
-     if (strlen(fileName) > subdirLength) {
-      //entry.getSFN(sfileName);
-      strcpy(prevSubDir[subdir], sfileName);
-     }
-     else {
-      strcpy(prevSubDir[subdir], fileName);
-     }
-     subdir++;      
+    dir.close();
+    dir.open("/");
+  }
+  else
+  {
+    if (subdir < nMaxPrevSubDirs)
+    {
+      // stash subdirectory index (much quicker than copying the entire name)
+      prevSubDirIndex[subdir] = fileIndex;
+      subdir++;
+    }
+    tmpdir.open(&dir, fileIndex, O_RDONLY);
+    dir = tmpdir;
+    tmpdir.close();
   }
   getMaxFile();
-  currentFile=1;
-  seekFile(currentFile);
+  fileIndex=0;
+  seekFile();
 }
 
 void scrollText(char* text)
