@@ -22,6 +22,11 @@
  *    
  *  Save settings to eeprom on exit. 
  */
+
+#ifdef HAVE_EEPROM
+#include <EEPROM.h>
+#endif
+
  void menuMode()
  {
   byte lastbtn=true;
@@ -290,6 +295,7 @@
 
  void updateEEPROM()
  {
+ #ifdef HAVE_EEPROM
   /* Setting Byte: 
    *  bit 0: 1200
    *  bit 1: 2400
@@ -317,10 +323,12 @@
   if(FlipPolarity) settings |=64;
   if(uefTurboMode) settings |=128;
   EEPROM.put(0,settings);
+ #endif
  }
 
  void loadEEPROM()
  {
+ #ifdef HAVE_EEPROM
   byte settings=0;
   EEPROM.get(0,settings);
   if(!settings) return;
@@ -353,5 +361,5 @@
     BAUDRATE=3600;
   }
   //setBaud();
-  
+ #endif
  }

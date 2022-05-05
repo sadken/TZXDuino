@@ -79,7 +79,6 @@
 
 #include "SdCardSetup.h"
 #include <TimerOne.h>
-#include <EEPROM.h>
 #include "TZXDuino.h"
 #include "userconfig.h"
 #include "buttons.h"

@@ -32,6 +32,10 @@
 #define HAVE_MOTOR
 #define btnMotor      6             //Motor Sense (connect pin to gnd to play, NC for pause)
 
+// define HAVE_EEPROM if your device has an eeprom compatible with <EEPROM.h>
+#define HAVE_EEPROM
+
+
 //#define SERIALSCREEN  1           /*For Testing purposes only */
 
 #define LCDSCREEN16x2   1         /*Set if you are using a 1602 LCD screen */
