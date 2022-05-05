@@ -82,6 +82,7 @@
 #include <EEPROM.h>
 #include "TZXDuino.h"
 #include "userconfig.h"
+#include "buttons.h"
 
 #define VERSION "TZXDuino 1.19"
 
@@ -152,21 +153,17 @@ byte subdir = 0;
 unsigned long filesize;             // filesize used for dimensioning AY files
 const int chipSelect = 10;          //Sd card chip select pin
 
-#define btnPlay       17            //Play Button
-#define btnStop       16            //Stop Button
-#define btnUp         15            //Up button
-#define btnDown       14            //Down button
-#define btnMotor      6             //Motor Sense (connect pin to gnd to play, NC for pause)
-#define btnRoot       7             //Return to SD card root
 #define scrollSpeed   250           //text scroll delay
 #define scrollWait    3000          //Delay before scrolling starts
 
 byte scrollPos = 0;                 //Stores scrolling text position
 unsigned long scrollTime = millis() + scrollWait;
 
-byte mselectState = 0;              //Motor control state 1=on 0=off
-byte motorState = 1;                //Current motor control state
-byte oldMotorState = 1;             //Last motor control state
+#ifdef HAVE_MOTOR
+bool motorState = true;                //Current motor control state
+bool oldMotorState = true;             //Last motor control state
+#endif
+
 byte start = 0;                     //Currently playing flag
 byte pauseOn = 0;                   //Pause state
 uint16_t lastIndex = 0;             //Index of last file in current directory
@@ -225,21 +222,7 @@ void setup() {
   dir.open("/");                    //set SD to root directory
   TZXSetup();                       //Setup TZX specific options
   
-  //General Pin settings
-  //Setup buttons with internal pullup 
-  pinMode(btnPlay,INPUT_PULLUP);
-  digitalWrite(btnPlay,HIGH);
-  pinMode(btnStop,INPUT_PULLUP);
-  digitalWrite(btnStop,HIGH);
-  pinMode(btnUp,INPUT_PULLUP);
-  digitalWrite(btnUp,HIGH);
-  pinMode(btnDown,INPUT_PULLUP);
-  digitalWrite(btnDown,HIGH);
-  pinMode(btnMotor, INPUT_PULLUP);
-  digitalWrite(btnMotor,HIGH);
-  pinMode(btnRoot, INPUT_PULLUP);
-  digitalWrite(btnRoot, HIGH); 
-   
+  setup_buttons();   
  
   printtextF(PSTR("Starting.."),0);
   delay(500);
@@ -284,11 +267,15 @@ void loop(void) {
       scrollText(fileName);
     }
   }
-  motorState=digitalRead(btnMotor);
+
+  #ifdef HAVE_MOTOR
+  motorState = button_motor();
+  #endif
+  
   if (millis() - timeDiff > 50) {   // check switch every 50ms 
      timeDiff = millis();           // get current millisecond count
       
-      if(digitalRead(btnPlay) == LOW) {
+      if(button_play()) {
         //Handle Play/Pause button
         if(start==0) {
           //If no file is play, start playback
@@ -318,15 +305,10 @@ void loop(void) {
             pauseOn = 0;
           }
        }
-       while(digitalRead(btnPlay)==LOW) {
-        //prevent button repeats by waiting until the button is released.
-        delay(200);
-       }
+       button_wait(button_play);
      }
 
-    
-
-     if(digitalRead(btnRoot)==LOW && start==0){
+     if(button_root() && start==0){
       
        menuMode();
        printtextF(PSTR(VERSION),0);
@@ -335,20 +317,15 @@ void loop(void) {
        scrollPos=0;
        scrollText(fileName);
        
-                
-       while(digitalRead(btnRoot)==LOW) {
-         //prevent button repeats by waiting until the button is released.
-         delay(200);
-       }
+       button_wait(button_root);
      }
-     if(digitalRead(btnStop)==LOW && start==1) {
+
+     if(button_stop() && start==1) {
        stopFile();
-       while(digitalRead(btnStop)==LOW) {
-         //prevent button repeats by waiting until the button is released.
-         delay(200);
-       }       
+       button_wait(button_stop);
      }
-     if(digitalRead(btnStop)==LOW && start==0 && subdir >0) {  
+
+     if(button_stop() && start==0 && subdir >0) {  
        subdir--;
        uint16_t this_directory=prevSubDirIndex[subdir];
     
@@ -365,34 +342,31 @@ void loop(void) {
        getMaxFile();
        fileIndex = this_directory;
        seekFile();
-       while(digitalRead(btnStop)==LOW) {
-         //prevent button repeats by waiting until the button is released.
-         delay(200);
-       }
+       button_wait(button_stop);
      }     
 
      if (start==0)
      {
-        if(digitalRead(btnDown)==LOW) 
+        if(button_down()) 
         {
           //Move down a file in the directory
           scrollTime=millis()+scrollWait;
           scrollPos=0;
           downFile();
-          //while(digitalRead(btnDown)==LOW) {
+          //while(button_down()) {
             //prevent button repeats by waiting until the button is released.
             delay(browseDelay);
             reduceBrowseDelay();
           //}
         }
 
-       else if(digitalRead(btnUp)==LOW) 
+       else if(button_up()) 
        {
          //Move up a file in the directory
          scrollTime=millis()+scrollWait;
          scrollPos=0;
          upFile();       
-         //while(digitalRead(btnUp)==LOW) {
+         //while(button_up()) {
            //prevent button repeats by waiting until the button is released.
             delay(browseDelay);
             reduceBrowseDelay();
@@ -404,29 +378,29 @@ void loop(void) {
        }
      }
 
-     if(digitalRead(btnUp)==LOW && start==1) {
+     if(button_up() && start==1) {
  /*     
-       while(digitalRead(btnUp)==LOW) {
+       while(button_up()) {
          //prevent button repeats by waiting until the button is released.
          delay(50); 
        }
  */      
      }
 
-     if(digitalRead(btnDown)==LOW && start==1) {
+     if(button_down() && start==1) {
 /*
-       while(digitalRead(btnDown)==LOW) {
+       while(button_down()) {
          //prevent button repeats by waiting until the button is released.
          delay(50);
        }
 */
      }
 
-
-     if(start==1 && (!oldMotorState==motorState)) {  
+     #ifdef HAVE_MOTOR
+     if(start==1 && (oldMotorState!=motorState)) {  
        //if file is playing and motor control is on then handle current motor state
        //Motor control works by pulling the btnMotor pin to ground to play, and NC to stop
-       if(motorState==1 && pauseOn==0) {
+       if(motorState && pauseOn==0) {
         printtextF(PSTR("Paused "),0);
         Counter1();
         
@@ -436,7 +410,7 @@ void loop(void) {
             #endif
          pauseOn = 1;
        } 
-       if(motorState==0 && pauseOn==1) {
+       if(!motorState && pauseOn==1) {
          printtextF(PSTR("Playing"),0);
          Counter1();
          
@@ -449,6 +423,7 @@ void loop(void) {
        }
        oldMotorState=motorState;
      }
+     #endif
   }
 }
 

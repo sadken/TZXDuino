@@ -8,6 +8,30 @@
 /////////////////////////////////////////////////////////////////
 
 
+// which device/platform are you building.
+
+//#define BUTTONS_ADC
+//#define BUTTONS_ADC_PIN      A3 // buttons on single ADC input pin
+// set ADC ranges here (used if BUTTONS_ADC is defined). Set your resistors so that the voltage divider falls in the middle of the bands.
+// each #define is the 'lower bound', the upper bound is the next level after it.
+// no action triggered when ADC reading between 0 and the level for UP
+#define BUTTONS_ADC_UP_LOW   200 // UP action triggered when ADC reading anywhere between this level and the next level (DOWN)
+#define BUTTONS_ADC_DOWN_LOW 400 // DOWN action triggered when ADC reading anywhere between this level and the next level (ROOT)
+#define BUTTONS_ADC_ROOT_LOW 700 // ROOT action triggered when ADC reading anywhere between this level and the next level (STOP)
+#define BUTTONS_ADC_STOP_LOW 900 // STOP action triggered when ADC reading anywhere between this level and the next level (PLAY)
+#define BUTTONS_ADC_PLAY_LOW 980 // PLAY action triggered when ADC reading anywhere between this level and 1023 (= upper limit)
+
+// set button GPIO pins (used if BUTTONS_ADC is NOT defined)
+#define btnPlay       17            //Play Button
+#define btnStop       16            //Stop Button
+#define btnUp         15            //Up button
+#define btnDown       14            //Down button
+#define btnRoot       7             //Return to SD card root
+
+// define HAVE_MOTOR if you want to add support for motor control (requires an extra GPIO)
+#define HAVE_MOTOR
+#define btnMotor      6             //Motor Sense (connect pin to gnd to play, NC for pause)
+
 //#define SERIALSCREEN  1           /*For Testing purposes only */
 
 #define LCDSCREEN16x2   1         /*Set if you are using a 1602 LCD screen */
@@ -30,7 +54,7 @@
 #define maxFilenameLength   100       //Maximum length for long filename support (ideally as large as possible to support very long filenames)
 #define nMaxPrevSubDirs  20         //Number of parent directories to hold i.e. maximum depth of being able to navigate 'back up' through parent folders (ideally as large as possible to support deep file trees)
 
-// Test with reduced SPI speed for breadboards.  SD_SCK_MHZ(4) will select 
+// Test with reduced SPI speed for breadboards.  SD_SCK_MHZ(4) will select
 // the highest speed supported by the board that is not over 4 MHz.
 // Change SPI_SPEED to SPI_FULL_SPEED or SD_SCK_MHZ(50) for best performance.
 //#define SPI_SPEED SD_SCK_MHZ(4)

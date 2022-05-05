@@ -29,7 +29,7 @@
   byte subItem=0;
   byte updateScreen=true;
   
-  while(digitalRead(btnStop)==HIGH || lastbtn)
+  while(!button_stop() || lastbtn)
   {
     if(updateScreen) {
       ////lcd_clearline(0);
@@ -57,26 +57,26 @@
       updateScreen=false;
     }
     
-    if(digitalRead(btnDown)==LOW && !lastbtn){
+    if(button_down() && !lastbtn){
       if(menuItem<3) menuItem+=1;
       lastbtn=true;
       updateScreen=true;
     }
-    if(digitalRead(btnUp)==LOW && !lastbtn) {
+    if(button_up() && !lastbtn) {
       if(menuItem>0) menuItem+=-1;
       lastbtn=true;
       updateScreen=true;
     }
 
     
-    if(digitalRead(btnPlay)==LOW && !lastbtn) {
+    if(button_play() && !lastbtn) {
       switch(menuItem){
         
         case 0:
           subItem=0;
           updateScreen=true;
           lastbtn=true;
-          while(digitalRead(btnStop)==HIGH || lastbtn) {
+          while(!button_stop() || lastbtn) {
             if(updateScreen) {
               ////lcd_clearline(0);
               printtextF(PSTR("TSX Baud Rate"),0);
@@ -98,17 +98,17 @@
               updateScreen=false;
             }
                     
-            if(digitalRead(btnDown)==LOW && !lastbtn){
+            if(button_down() && !lastbtn){
               if(subItem<2) subItem+=1;
               lastbtn=true;
               updateScreen=true;
             }
-            if(digitalRead(btnUp)==LOW && !lastbtn) {
+            if(button_up() && !lastbtn) {
               if(subItem>0) subItem+=-1;
               lastbtn=true;
               updateScreen=true;
             }
-            if(digitalRead(btnPlay)==LOW && !lastbtn) {
+            if(button_play() && !lastbtn) {
               switch(subItem) {
                 case 0:
                   BAUDRATE=1200;
@@ -123,7 +123,7 @@
               updateScreen=true;
               lastbtn=true;
             }
-            if(digitalRead(btnDown) && digitalRead(btnUp) && digitalRead(btnPlay) && digitalRead(btnStop)) lastbtn=false;
+            if(!button_down() && !button_up() && !button_play() && !button_stop()) lastbtn=false;
           }
           lastbtn=true;
           updateScreen=true;
@@ -133,7 +133,7 @@
           subItem=0;
           updateScreen=true;
           lastbtn=true;
-          while(digitalRead(btnStop)==HIGH || lastbtn) {
+          while(!button_stop() || lastbtn) {
             if(updateScreen) {
               //lcd_clearline(0);
               printtextF(PSTR("Turbo Boost"),0);
@@ -151,17 +151,17 @@
               updateScreen=false;
             }
                     
-            if(digitalRead(btnDown)==LOW && !lastbtn){
+            if(button_down() && !lastbtn){
               if(subItem<1) subItem+=1;
               lastbtn=true;
               updateScreen=true;
             }
-            if(digitalRead(btnUp)==LOW && !lastbtn) {
+            if(button_up() && !lastbtn) {
               if(subItem>0) subItem+=-1;
               lastbtn=true;
               updateScreen=true;
             }
-            if(digitalRead(btnPlay)==LOW && !lastbtn) {
+            if(button_play() && !lastbtn) {
               switch(subItem) {
                 case 0:
                   uefTurboMode=1;
@@ -173,7 +173,7 @@
               lastbtn=true;
               updateScreen=true;
             }
-            if(digitalRead(btnDown) && digitalRead(btnUp) && digitalRead(btnPlay) && digitalRead(btnStop)) lastbtn=false;
+            if(!button_down() && !button_up() && !button_play() && !button_stop()) lastbtn=false;
           }
           lastbtn=true;
           updateScreen=true;
@@ -183,7 +183,7 @@
           subItem=0;
           updateScreen=true;
           lastbtn=true;
-          while(digitalRead(btnStop)==HIGH || lastbtn) {
+          while(!button_stop() || lastbtn) {
             if(updateScreen) {
               //lcd_clearline(0);
               printtextF(PSTR("Pause @ Start"),0);
@@ -202,17 +202,17 @@
               updateScreen=false;
             }
                     
-            if(digitalRead(btnDown)==LOW && !lastbtn){
+            if(button_down() && !lastbtn){
               if(subItem<1) subItem+=1;
               lastbtn=true;
               updateScreen=true;
             }
-            if(digitalRead(btnUp)==LOW && !lastbtn) {
+            if(button_up() && !lastbtn) {
               if(subItem>0) subItem+=-1;
               lastbtn=true;
               updateScreen=true;
             }
-            if(digitalRead(btnPlay)==LOW && !lastbtn) {
+            if(button_play() && !lastbtn) {
               switch(subItem) {
                 case 0:
                   PauseAtStart=true;
@@ -224,7 +224,7 @@
               lastbtn=true;
               updateScreen=true;
             }
-            if(digitalRead(btnDown) && digitalRead(btnUp) && digitalRead(btnPlay) && digitalRead(btnStop)) lastbtn=false;
+            if(!button_down() && !button_up()&& !button_play() && !button_stop()) lastbtn=false;
           }
           lastbtn=true;
           updateScreen=true;
@@ -234,7 +234,7 @@
           subItem=0;
           updateScreen=true;
           lastbtn=true;
-          while(digitalRead(btnStop)==HIGH || lastbtn) {
+          while(!button_stop() || lastbtn) {
             if(updateScreen) {
               //lcd_clearline(0);
               printtextF(PSTR("Gremlin Loader"),0);
@@ -253,17 +253,17 @@
               updateScreen=false;
             }
                     
-            if(digitalRead(btnDown)==LOW && !lastbtn){
+            if(button_down() && !lastbtn){
               if(subItem<1) subItem+=1;
               lastbtn=true;
               updateScreen=true;
             }
-            if(digitalRead(btnUp)==LOW && !lastbtn) {
+            if(button_up() && !lastbtn) {
               if(subItem>0) subItem+=-1;
               lastbtn=true;
               updateScreen=true;
             }
-            if(digitalRead(btnPlay)==LOW && !lastbtn) {
+            if(button_play() && !lastbtn) {
               switch(subItem) {
                 case 0:
                   FlipPolarity = 1;
@@ -275,7 +275,7 @@
               lastbtn=true;
               updateScreen=true;
             }
-            if(digitalRead(btnDown) && digitalRead(btnUp) && digitalRead(btnPlay) && digitalRead(btnStop)) lastbtn=false;
+            if(!button_down() && !button_up()&& !button_play() && !button_stop()) lastbtn=false;
           }
           lastbtn=true;
           updateScreen=true;
@@ -283,7 +283,7 @@
         
       }
     }
-    if(digitalRead(btnDown) && digitalRead(btnUp) && digitalRead(btnPlay) && digitalRead(btnStop)) lastbtn=false;
+    if(!button_down() && !button_up()&& !button_play() && !button_stop()) lastbtn=false;
   }
   updateEEPROM();
  }
