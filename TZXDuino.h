@@ -213,14 +213,14 @@ int TSXspeedup = 1;
 int BAUDRATE = 1200;
 
 word chunkID = 0;
-byte uefTurboMode = 0;
+bool uefTurboMode = false;
 float outFloat;
 byte UEFPASS = 0;
 byte passforZero=2;
 byte passforOne=4;
 
-byte PauseAtStart = false;
-byte FlipPolarity = 0;
+bool PauseAtStart = false;
+bool FlipPolarity = false;
 byte ID15switch = 0;
 
 byte wibble = 1;

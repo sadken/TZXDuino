@@ -236,7 +236,7 @@ void TZXProcess() {
       } else {
         chunkID = IDCHUNKEOF;
       }
-      if (!(uefTurboMode)) {
+      if (!uefTurboMode) {
          zeroPulse = UEFZEROPULSE;
          onePulse = UEFONEPULSE;
       } else {
@@ -278,7 +278,7 @@ void TZXProcess() {
         case ID0110:
           if(currentBlockTask==READPARAM){
             if(r=ReadWord(bytesRead)==2) {
-              if (!(uefTurboMode)) {     
+              if (!uefTurboMode) {     
                  pilotPulses = UEFPILOTPULSES;
                  pilotLength = UEFPILOTLENGTH;
               } else {
@@ -1316,7 +1316,7 @@ void ZX8081DataBlock() {
 
 
 void ZX80ByteWrite(){
-  if (uefTurboMode==1){
+  if (uefTurboMode){
     currentPeriod = ZX80TURBOPULSE;
   if(pass==1) {
     currentPeriod=ZX80TURBOBITGAP;
@@ -1504,7 +1504,7 @@ void wave() {
       if(pauseFlipBit==true) {
         newTime = 1500;                     //Set 1.5ms initial pause block
         //pinState = LOW;                     //Set next pinstate LOW
-        if (FlipPolarity==0) {
+        if (!FlipPolarity) {
           pinState = LOW;
         } else {
           pinState = HIGH;
