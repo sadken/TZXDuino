@@ -78,7 +78,7 @@
   */
 
 #include "SdCardSetup.h"
-#include <TimerOne.h>
+#include "Timers.h"
 #include "TZXDuino.h"
 #include "userconfig.h"
 #include "buttons.h"
@@ -150,7 +150,6 @@ uint16_t fileIndex;                    //Index of current file, relative to curr
 uint16_t prevSubDirIndex[nMaxPrevSubDirs];  //History when stepping into subdirectories (sequence of indexes of directory entries, relative to root)
 byte subdir = 0;
 unsigned long filesize;             // filesize used for dimensioning AY files
-const int chipSelect = 10;          //Sd card chip select pin
 
 #define scrollSpeed   250           //text scroll delay
 #define scrollWait    3000          //Delay before scrolling starts

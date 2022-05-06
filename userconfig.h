@@ -10,6 +10,18 @@
 
 // which device/platform are you building.
 
+#if defined(__AVR__)
+#define outputPin           9               // Audio Output PIN - Set accordingly to your hardware.
+#define LowWrite() {PORTB&=(~(1<<PORTB1));}
+#define HighWrite() {PORTB|=(1<<PORTB1);}
+#define chipSelect 10                       //Sd card chip select pin
+#elif defined(__SAMD21__)
+#define outputPin           7               // Audio Output PIN - Set accordingly to your hardware.
+#define LowWrite() {digitalWrite(outputPin, LOW);}
+#define HighWrite() {digitalWrite(outputPin, HIGH);}
+#define chipSelect 2                        //Sd card chip select pin
+#endif
+
 //#define BUTTONS_ADC
 //#define BUTTONS_ADC_PIN      A3 // buttons on single ADC input pin
 // set ADC ranges here (used if BUTTONS_ADC is defined). Set your resistors so that the voltage divider falls in the middle of the bands.

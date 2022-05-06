@@ -52,13 +52,13 @@ void checkForEXT (char *filename) {
 }
 
 void TZXPlay() {
-  Timer1.stop();                              //Stop timer interrupt
+  Timer.stop();                              //Stop timer interrupt
 
   // on entry, fileIndex is already pointing to the file entry you want to play
   // and fileName has already been set accordingly
   entry.close();
   entry.open(&dir, fileIndex, O_RDONLY);
- 
+
   bytesRead=0;                                //start of file
   currentTask=GETFILEHEADER;                  //First task: search for header
   checkForEXT (fileName);
@@ -68,13 +68,17 @@ void TZXPlay() {
   pinState=LOW;                               //Always Start on a LOW output for simplicity
   count = 255;                                //End of file buffer flush
   EndOfFile=false;
-  //digitalWrite(outputPin, pinState);
-  if(pinState==LOW) {
-        LowWrite(PORTB, PORTB1);}
-        else
-        {
-          HighWrite(PORTB, PORTB1); }
-  Timer1.setPeriod(1000);                     //set 1ms wait at start of a file.
+  
+  if(pinState==LOW)
+  {
+    LowWrite();
+  }
+  else
+  {
+    HighWrite();
+  }
+    
+  Timer.setPeriod(1000);                     //set 1ms wait at start of a file.
 }
 
 bool checkForTap(char *filename) {
@@ -123,7 +127,7 @@ bool checkForUEF(char *filename) {
 }
 
 void TZXStop() {
-  Timer1.stop();                              //Stop timer
+  Timer.stop();                              //Stop timer
   isStopped=true;
   entry.close();                              //Close file
                                                                                 // DEBUGGING Stuff
@@ -180,12 +184,10 @@ void TZXLoop() {
 
 void TZXSetup() {
     pinMode(outputPin, OUTPUT);               //Set output pin
-    LowWrite(PORTB, PORTB1);             //Start output LOW
+    LowWrite();                               //Start output LOW
     isStopped=true;
     pinState=LOW;
-    Timer1.initialize(100000);                //100ms pause prevents anything bad happening before we're ready
-    Timer1.attachInterrupt(wave);
-    Timer1.stop();                            //Stop the timer until we're ready
+    Timer.initialize();
 }
 
 void TZXProcess() {
@@ -1475,31 +1477,44 @@ void wave() {
       }
       
       if (ID15switch == 1){
-      if (bitRead(workingPeriod, 14)== 0) {
-        //pinState = !pinState;
-        if (pinState == LOW)     LowWrite(PORTB, PORTB1);    
-        else  HighWrite(PORTB, PORTB1);
-       } else {
-        if (bitRead(workingPeriod, 13) == 0)     LowWrite(PORTB, PORTB1);    
-        else  {
-          HighWrite(PORTB, PORTB1); 
-          bitClear(workingPeriod,13);}     
+        if (bitRead(workingPeriod, 14)== 0)
+        {
+          //pinState = !pinState;
+          if (pinState == LOW)
+          {
+            LowWrite();
+          }
+          else
+          {
+            HighWrite();
+          }
+        }
+        else
+        {
+          if (bitRead(workingPeriod, 13) == 0)
+          {
+            LowWrite();
+          }
+          else
+          {
+            HighWrite();
+            bitClear(workingPeriod,13);
+          }
           bitClear(workingPeriod,14);         //Clear ID15 flag
           workingPeriod = TstatesperSample;
-                      
-      }
+        }
       } 
       else {
         //pinState = !pinState;
-        if(pinState==LOW) {
-        LowWrite(PORTB, PORTB1);}
+        if(pinState==LOW)
+        {
+          LowWrite();
+        }
         else
         {
-          HighWrite(PORTB, PORTB1); }
+          HighWrite();
+        }
       }
-      
-      
-      //digitalWrite(outputPin, pinState);
       
       if(pauseFlipBit==true) {
         newTime = 1500;                     //Set 1.5ms initial pause block
@@ -1539,8 +1554,8 @@ void wave() {
   }
   //newTime += 12;
   //fudgeTime = micros() - fudgeTime;         //Compensate for stupidly long ISR
-  //Timer1.setPeriod(newTime - fudgeTime);    //Finally set the next pulse length
-  Timer1.setPeriod(newTime +4);    //Finally set the next pulse length
+  //Timer.setPeriod(newTime - fudgeTime);    //Finally set the next pulse length
+  Timer.setPeriod(newTime +4);    //Finally set the next pulse length
 }
 
 int ReadByte(unsigned long pos) {
