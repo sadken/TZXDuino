@@ -82,8 +82,7 @@
 #include "TZXDuino.h"
 #include "userconfig.h"
 #include "buttons.h"
-
-#define VERSION "TZXDuino 1.19"
+#include "version.h"
 
 
 #ifdef LCDSCREEN16x2
