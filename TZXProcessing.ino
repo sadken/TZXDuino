@@ -1022,7 +1022,7 @@ void TZXProcess() {
         case EOF:
           //Handle end of file
           if(!count==0) {
-            currentPeriod = 32767;
+            currentPeriod = 32768 + 20;
             //currentPeriod = 2000;
             //bitSet(currentPeriod, 15); bitSet(currentPeriod, 12);
             count += -1;
@@ -1464,7 +1464,8 @@ void wave() {
         //Pause block periods are stored in milliseconds not microseconds
         isPauseBlock = true;
         bitClear(workingPeriod,15);         //Clear pause block flag
-        pinState = !pinState;
+        //// DCH - don't flip the pinstate here because that means the pinstate would continually flipflop if you have multiple pause blocks back-to-back
+        //// pinState = !pinState;
         pauseFlipBit = true;
         wasPauseBlock = true;
       } else {
