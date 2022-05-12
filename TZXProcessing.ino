@@ -137,7 +137,7 @@ void TZXStop() {
   bytesRead=0;                                // reset read bytes PlayBytes
   blkchksum = 0;                              // reset block chksum byte for AY loading routine
   AYPASS = 0;                                 // reset AY flag
-  ID15switch = 0;                              // ID15switch
+  ID15switch = false;                              // ID15switch
 }
 
 void TZXPause() {
@@ -148,12 +148,12 @@ void TZXPause() {
 void TZXLoop() {
     noInterrupts();                           //Pause interrupts to prevent var reads and copy values out
     copybuff = morebuff;
-    morebuff = LOW;
+    morebuff = false;
     isStopped = pauseOn;
     interrupts();
-    if(copybuff==HIGH) {
+    if(copybuff) {
       btemppos=0;                             //Buffer has swapped, start from the beginning of the new page
-      copybuff=LOW;
+      copybuff=false;
     }
 
     if(btemppos<=buffsize)                    // Keep filling until full
@@ -167,7 +167,7 @@ void TZXLoop() {
       }
     } else {
         
-        if ((pauseOn == 0)&& (currpct<100)) lcdTime();  
+        if ((!pauseOn)&& (currpct<100)) lcdTime();  
         newpct=(100 * bytesRead)/filesize;                   
         if (currpct == 100){
             currpct = 0;
@@ -1015,7 +1015,7 @@ void TZXProcess() {
             bitSet(currentPeriod, 15);
           } else {
             currentTask = GETID;
-            if(EndOfFile==true) currentID=EOF;  
+            if(EndOfFile) currentID=EOF;  
           } 
         break;
     
@@ -1129,7 +1129,7 @@ void StandardBlock() {
         currentBlockTask = READPARAM;
     
       }
-      if(EndOfFile==true) currentID=EOF;
+      if(EndOfFile) currentID=EOF;
     break;
   }
 }
@@ -1452,10 +1452,9 @@ void wave() {
   //ISR Output routine
   //unsigned long fudgeTime = micros();         //fudgeTime is used to reduce length of the next period by the time taken to process the ISR
   word workingPeriod = wbuffer[pos][workingBuffer];
-  byte pauseFlipBit = false;
+  bool pauseFlipBit = false;
   unsigned long newTime=1;
-  intError = false;
-  if(isStopped==0 && workingPeriod >= 1)
+  if(!isStopped && workingPeriod >= 1)
   {
       if bitRead(workingPeriod, 15)          
       {
@@ -1469,15 +1468,15 @@ void wave() {
         pauseFlipBit = true;
         wasPauseBlock = true;
       } else {
-         if(workingPeriod >= 1 && wasPauseBlock==false) {
+         if(workingPeriod >= 1 && !wasPauseBlock) {
           pinState = !pinState;
-        } else if (wasPauseBlock==true && isPauseBlock==false) {
+        } else if (wasPauseBlock && !isPauseBlock) {
           wasPauseBlock=false;
         }
-        //if (wasPauseBlock==true && isPauseBlock==false) wasPauseBlock=false; 
+        //if (wasPauseBlock && !isPauseBlock) wasPauseBlock=false; 
       }
       
-      if (ID15switch == 1){
+      if (ID15switch){
         if (bitRead(workingPeriod, 14)== 0)
         {
           //pinState = !pinState;
@@ -1517,7 +1516,7 @@ void wave() {
         }
       }
       
-      if(pauseFlipBit==true) {
+      if(pauseFlipBit) {
         newTime = 1500;                     //Set 1.5ms initial pause block
         //pinState = LOW;                     //Set next pinstate LOW
         if (!FlipPolarity) {
@@ -1539,16 +1538,16 @@ void wave() {
         {
           pos = 0;
           workingBuffer^=1;
-          morebuff = HIGH;                  //Request more data to fill inactive page
+          morebuff = true;                  //Request more data to fill inactive page
         } 
      }
-  } else if(workingPeriod <= 1 && isStopped==0) {
+  } else if(workingPeriod <= 1 && !isStopped) {
     newTime = 1000;                         //Just in case we have a 0 in the buffer
     pos += 1;
     if(pos > buffsize) {
       pos = 0;
       workingBuffer ^= 1;
-      morebuff = HIGH;
+      morebuff = true;
     }
   } else {
     newTime = 1000000;                         //Just in case we have a 0 in the buffer
@@ -1659,7 +1658,7 @@ void ReadAYHeader() {
 void writeSampleData() {
   //Convert byte from file into string of pulses.  One pulse per pass
   byte r;
-  ID15switch = 1;
+  ID15switch = true;
   if(currentBit==0) {                         //Check for byte end/first byte
     if(r=ReadByte(bytesRead)==1) {            //Read in a byte
       currentByte = outByte;
@@ -1676,7 +1675,7 @@ void writeSampleData() {
     } else if(r==0) {
       EndOfFile=true;
       if(pauseLength==0) {
-        //ID15switch = 0;
+        //ID15switch = false;
         currentTask = GETID;
       } else {
         currentBlockTask = PAUSE;
@@ -1690,20 +1689,23 @@ void writeSampleData() {
     }
     pass=0;
   } 
- if bitRead(currentPeriod, 14) {
+  
+  if bitRead(currentPeriod, 14) {
     //bitWrite(currentPeriod,13,currentByte&0x80);
     if(currentByte&0x80) bitSet(currentPeriod, 13);
     pass+=2;
   }
-  else {
+  else
+  {
     if(currentByte&0x80){                       //Set next period depending on value of bit 0
-        currentPeriod = onePulse;
-      } else {
-        currentPeriod = zeroPulse;
-      }
-      pass+=1;
-}
-if(pass==2) {
+      currentPeriod = onePulse;
+    } else {
+      currentPeriod = zeroPulse;
+    }
+    pass+=1;
+  }
+
+  if(pass==2) {
     currentByte <<= 1;                        //Shift along to the next bit
     currentBit += -1;
     pass=0;  

@@ -161,8 +161,8 @@ bool motorState = true;                //Current motor control state
 bool oldMotorState = true;             //Last motor control state
 #endif
 
-byte start = 0;                     //Currently playing flag
-byte pauseOn = 0;                   //Pause state
+bool start = false;                     //Currently playing flag
+bool pauseOn = false;                   //Pause state
 uint16_t lastIndex = 0;             //Index of last file in current directory
 bool isDir = false;                     //Is the current file a directory
 unsigned long timeDiff = 0;         //button debounce
@@ -244,7 +244,7 @@ void setup() {
 
 void loop(void) {
   
-  if(start==1)
+  if(start)
   {
     //TZXLoop only runs if a file is playing, and keeps the buffer full.
     TZXLoop();
@@ -252,7 +252,7 @@ void loop(void) {
     digitalWrite(outputPin, LOW);    //Keep output LOW while no file is playing.
   }
   
-  if((millis()>=scrollTime) && start==0 && (strlen(fileName)>15)) {
+  if((millis()>=scrollTime) && !start && (strlen(fileName)>15)) {
     //Filename scrolling only runs if no file is playing to prevent I2C writes 
     //conflicting with the playback Interrupt
     scrollTime = millis()+scrollSpeed;
@@ -274,22 +274,20 @@ void loop(void) {
       
       if(button_play()) {
         //Handle Play/Pause button
-        if(start==0) {
+        if(!start) {
           //If no file is play, start playback
           playFile();
           delay(200);
         } else {
           //If a file is playing, pause or unpause the file                  
-          if (pauseOn == 0) {
+          pauseOn = !pauseOn;
+          if (pauseOn) {
             printtextF(PSTR("Paused "),0);
             Counter1();             
             #ifdef P8544 
               lcd.gotoRc(3,38);
               lcd.bitmap(Paused, 1, 6);
             #endif
-            
-            pauseOn = 1;
-            
           } else {
            printtextF(PSTR("Playing"),0);
            Counter1();
@@ -298,14 +296,12 @@ void loop(void) {
               lcd.gotoRc(3,38);
               lcd.bitmap(Play, 1, 6);               
             #endif
-            
-            pauseOn = 0;
           }
        }
        button_wait(button_play);
      }
 
-     if(button_root() && start==0){
+     if(button_root() && !start){
       
        menuMode();
        printtextF(PSTR(VERSION),0);
@@ -317,12 +313,12 @@ void loop(void) {
        button_wait(button_root);
      }
 
-     if(button_stop() && start==1) {
+     if(button_stop() && start) {
        stopFile();
        button_wait(button_stop);
      }
 
-     if(button_stop() && start==0 && subdir >0) {  
+     if(button_stop() && !start && subdir >0) {  
        subdir--;
        uint16_t this_directory=prevSubDirIndex[subdir];
     
@@ -342,7 +338,7 @@ void loop(void) {
        button_wait(button_stop);
      }     
 
-     if (start==0)
+     if (!start)
      {
         if(button_down()) 
         {
@@ -375,7 +371,7 @@ void loop(void) {
        }
      }
 
-     if(button_up() && start==1) {
+     if(button_up() && start) {
  /*     
        while(button_up()) {
          //prevent button repeats by waiting until the button is released.
@@ -384,7 +380,7 @@ void loop(void) {
  */      
      }
 
-     if(button_down() && start==1) {
+     if(button_down() && start) {
 /*
        while(button_down()) {
          //prevent button repeats by waiting until the button is released.
@@ -394,10 +390,10 @@ void loop(void) {
      }
 
      #ifdef HAVE_MOTOR
-     if(start==1 && (oldMotorState!=motorState)) {  
+     if(start && (oldMotorState!=motorState)) {  
        //if file is playing and motor control is on then handle current motor state
        //Motor control works by pulling the btnMotor pin to ground to play, and NC to stop
-       if(motorState && pauseOn==0) {
+       if(motorState && !pauseOn) {
         printtextF(PSTR("Paused "),0);
         Counter1();
         
@@ -405,9 +401,9 @@ void loop(void) {
               lcd.gotoRc(3,38);
               lcd.bitmap(Paused, 1, 6);
             #endif
-         pauseOn = 1;
+         pauseOn = true;
        } 
-       if(!motorState && pauseOn==1) {
+       if(!motorState && pauseOn) {
          printtextF(PSTR("Playing"),0);
          Counter1();
          
@@ -416,7 +412,7 @@ void loop(void) {
               lcd.bitmap(Play, 1, 6);              
             #endif
             
-         pauseOn = 0;
+         pauseOn = false;
        }
        oldMotorState=motorState;
      }
@@ -515,7 +511,7 @@ void seekFile() {
 
 void stopFile() {
   TZXStop();
-  if(start==1){
+  if(start){
     printtextF(PSTR("Stopped"),0);
     //lcd_clearline(0);
     //lcd.print(F("Stopped"));
@@ -523,7 +519,7 @@ void stopFile() {
       lcd.gotoRc(3,38);
       lcd.bitmap(Stop, 1, 6);
     #endif
-    start=0;
+    start=false;
   }
 }
 
@@ -544,7 +540,7 @@ void playFile() {
   {
     printtextF(PSTR("Playing         "),0);    
     scrollPos=0;
-    if (PauseAtStart == false) pauseOn = 0;
+    if (!PauseAtStart) pauseOn = false;
     scrollText(fileName);
     currpct=100;
     lcdsegs=0;      
@@ -553,14 +549,14 @@ void playFile() {
         lcd.gotoRc(3,38);
         lcd.bitmap(Play, 1, 6);
       #endif
-    start=1; 
-    if (PauseAtStart == true) {
+    start=true; 
+    if (PauseAtStart) {
       printtextF(PSTR("Paused "),0);
       #ifdef P8544
         lcd.gotoRc(3,38);
         lcd.bitmap(Play, 1, 6);
       #endif
-      pauseOn = 1;
+      pauseOn = true;
       TZXPause();
     }
   }

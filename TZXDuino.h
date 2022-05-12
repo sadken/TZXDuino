@@ -148,13 +148,12 @@ word currentPeriod=1;
 //ISR Variables
 volatile byte pos = 0;
 volatile word wbuffer[buffsize+1][2];
-volatile byte morebuff = HIGH;
+volatile bool morebuff = true;
 volatile byte workingBuffer=0;
-volatile byte isStopped=false;
+volatile bool isStopped=false;
 volatile byte pinState=LOW;
-volatile byte isPauseBlock = false;
-volatile byte wasPauseBlock = false;
-volatile byte intError = false;
+volatile bool isPauseBlock = false;
+volatile bool wasPauseBlock = false;
 
 //Main Variables
 byte AYPASS = 0;
@@ -162,7 +161,7 @@ byte hdrptr = 0;
 byte blkchksum = 0;
 word ayblklen = 0;
 byte btemppos = 0;
-byte copybuff = LOW;
+bool copybuff = false;
 unsigned long bytesRead=0;
 unsigned long bytesToRead=0;
 byte pulsesCountByte=0;
@@ -179,7 +178,6 @@ byte seqPulses=0;
 byte input[11];
 
 byte forcePause0=0;
-byte firstBlockPause = false;
 unsigned long loopStart=0;
 word pauseLength=0;
 word temppause=0;
@@ -192,7 +190,7 @@ volatile byte currentByte=0;
 volatile byte currentChar=0;
 byte pass=0;
 unsigned long debugCount=0;
-byte EndOfFile=false;
+bool EndOfFile=false;
 byte lastByte;
 //byte firstTime=true;
 
@@ -215,7 +213,7 @@ byte passforOne=4;
 
 bool PauseAtStart = false;
 bool FlipPolarity = false;
-byte ID15switch = 0;
+volatile bool ID15switch = false;
 
 byte wibble = 1;
 byte parity = 0 ;        //0:NoParity 1:ParityOdd 2:ParityEven (default:0)
