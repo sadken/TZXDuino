@@ -219,11 +219,10 @@ const unsigned char SpecFont[][8] PROGMEM = {
     {
     sendcommand(0xb0+row); //set page address
     
-    
     #ifdef OLED1306_1.3
-    sendcommand(0x02+(8*col&0x0f)); //set low col address
+        sendcommand(0x02+(8*col&0x0f)); //set low col address
     #else
-    sendcommand(0x00+(8*col&0x0f)); //set low col address
+        sendcommand(0x00+(8*col&0x0f)); //set low col address
     #endif
     
     sendcommand(0x10+((8*col>>4)&0x0f)); //set high col address
@@ -233,18 +232,22 @@ const unsigned char SpecFont[][8] PROGMEM = {
     static void sendStr(const char *string)
     {
     unsigned char i=0;
+    Wire.beginTransmission(OLED_address); // begin transmitting
+    Wire.write(0x40);//data mode
     while(*string)
     {
     for(i=0;i<8;i++)
     {
       #ifdef SPECFONT
-        SendByte(pgm_read_byte(SpecFont[*string-0x20]+i));
+        Wire.write(pgm_read_byte(SpecFont[*string-0x20]+i));
       #else
-        SendByte(pgm_read_byte(myFont[*string-0x20]+i));
+        Wire.write(pgm_read_byte(myFont[*string-0x20]+i));
       #endif
     }
     *string++;
     }
+    Wire.endTransmission(); // stop transmitting
+
     }
     //==========================================================//
     // Prints a string in coordinates X Y, being multiples of 8.
@@ -252,19 +255,7 @@ const unsigned char SpecFont[][8] PROGMEM = {
     static void sendStrXY(const char *string, int X, int Y)
     {
     setXY(X,Y);
-    unsigned char i=0;
-    while(*string)
-    {
-    for(i=0;i<8;i++)
-    {
-      #ifdef SPECFONT
-        SendByte(pgm_read_byte(SpecFont[*string-0x20]+i));
-      #else
-        SendByte(pgm_read_byte(myFont[*string-0x20]+i));
-      #endif
-    }
-    *string++;
-    }
+    sendStr(string);
     }
     //==========================================================//
 
