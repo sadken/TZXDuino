@@ -1463,8 +1463,7 @@ void wave() {
         //Pause block periods are stored in milliseconds not microseconds
         isPauseBlock = true;
         bitClear(workingPeriod,15);         //Clear pause block flag
-        //// DCH - don't flip the pinstate here because that means the pinstate would continually flipflop if you have multiple pause blocks back-to-back
-        //// pinState = !pinState;
+        pinState = !pinState;
         pauseFlipBit = true;
         wasPauseBlock = true;
       } else {
