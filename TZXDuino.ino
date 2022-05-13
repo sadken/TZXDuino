@@ -475,20 +475,17 @@ void seekFile() {
   isDir = (entry.isDir() || 0==strcmp(fileName, "ROOT"));
   entry.close();
 
-  PlayBytes[0]='\0'; 
   if (isDir==1) {
-    strcat_P(PlayBytes,PSTR(VERSION));
+    printtext(PSTR(VERSION),0);
     #ifdef P8544
       printtext("                 ",3);
     #endif
   } else {
-    //ltoa(filesize,PlayBytes,10);
-    strcat_P(PlayBytes,PSTR("Select File.."));
+    printtext(PSTR("Select File.."),0);
     #ifdef P8544
       printtext("                 ",3);
     #endif
   }
-  printtext(PlayBytes,0);
 
   scrollPos=0;
   scrollText(fileName);
