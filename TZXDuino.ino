@@ -346,11 +346,13 @@ void loop(void) {
           scrollTime=millis()+scrollWait;
           scrollPos=0;
           downFile();
-          //while(button_down()) {
-            //prevent button repeats by waiting until the button is released.
-            delay(browseDelay);
+          if (button_wait_timeout(button_down, browseDelay)) {
             reduceBrowseDelay();
-          //}
+          }
+          else
+          {
+            resetBrowseDelay();    
+          }
         }
 
        else if(button_up()) 
@@ -359,34 +361,18 @@ void loop(void) {
          scrollTime=millis()+scrollWait;
          scrollPos=0;
          upFile();       
-         //while(button_up()) {
-           //prevent button repeats by waiting until the button is released.
-            delay(browseDelay);
-            reduceBrowseDelay();
-         //   }
+         if (button_wait_timeout(button_up, browseDelay)) {
+           reduceBrowseDelay();
+         }
+         else
+         {
+           resetBrowseDelay();    
+         }
        }
        else
        {
         resetBrowseDelay();
        }
-     }
-
-     if(button_up() && start) {
- /*     
-       while(button_up()) {
-         //prevent button repeats by waiting until the button is released.
-         delay(50); 
-       }
- */      
-     }
-
-     if(button_down() && start) {
-/*
-       while(button_down()) {
-         //prevent button repeats by waiting until the button is released.
-         delay(50);
-       }
-*/
      }
 
      #ifdef HAVE_MOTOR

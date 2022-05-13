@@ -13,4 +13,4 @@ typedef bool (*button_fn)(void);
 void button_wait(button_fn);
 bool button_wait_timeout(button_fn, int timeout);
 
-#define BUTTON_WAIT_DELAY 200
+#define BUTTON_WAIT_DELAY 5 // small delay in ms, used in the button_wait/timeout loops
