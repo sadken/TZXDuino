@@ -292,14 +292,14 @@ static void clear_display(void)
   for(k=0;k<4;k++)  //4
   { 
     setXY(0,k);    
+    Wire.beginTransmission(OLED_address); // begin transmitting
+    Wire.write(0x40);//data mode
+    for(i=0;i<128;i++)     //was 128
     {
-      for(i=0;i<128;i++)     //was 128
-      {
-        SendByte(0);         //clear all COL
-        //delay(10);
-      }
+      Wire.write(0);    //clear all COL
     }
-  }
+    Wire.endTransmission(); // stop transmitting
+ }
 }
     
 //==========================================================//
@@ -393,10 +393,13 @@ static void init_OLED(void)
   for(int j=0;j<4;j++)
   {
     setXY(0,j);
+    Wire.beginTransmission(OLED_address); // begin transmitting
+    Wire.write(0x40);//data mode
     for(int i=0;i<128;i++)     // show 128* 32 Logo
     {
-      SendByte(pgm_read_byte(logo+j*128+i));
-    }  
+      Wire.write(pgm_read_byte(logo+j*128+i));
+    }
+    Wire.endTransmission(); // stop transmitting
   }
 }
 
