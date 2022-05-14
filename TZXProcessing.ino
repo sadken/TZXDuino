@@ -1004,10 +1004,10 @@ void TZXProcess() {
         case IDPAUSE:
                    
           if(temppause>0) {
-            if(temppause > 8300) {
+            if(temppause > 1000) {
               //Serial.println(temppause, DEC);
-              currentPeriod = 8300;
-              temppause += -8300;         
+              currentPeriod = 1000;
+              temppause -= 1000;         
             } else {
               currentPeriod = temppause;
               temppause = 0;
