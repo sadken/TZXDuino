@@ -219,11 +219,10 @@ const unsigned char SpecFont[][8] PROGMEM = {
     {
     sendcommand(0xb0+row); //set page address
     
-    
     #ifdef OLED1306_1.3
-    sendcommand(0x02+(8*col&0x0f)); //set low col address
+        sendcommand(0x02+(8*col&0x0f)); //set low col address
     #else
-    sendcommand(0x00+(8*col&0x0f)); //set low col address
+        sendcommand(0x00+(8*col&0x0f)); //set low col address
     #endif
     
     sendcommand(0x10+((8*col>>4)&0x0f)); //set high col address
@@ -233,18 +232,22 @@ const unsigned char SpecFont[][8] PROGMEM = {
     static void sendStr(const char *string)
     {
     unsigned char i=0;
+    Wire.beginTransmission(OLED_address); // begin transmitting
+    Wire.write(0x40);//data mode
     while(*string)
     {
     for(i=0;i<8;i++)
     {
       #ifdef SPECFONT
-        SendByte(pgm_read_byte(SpecFont[*string-0x20]+i));
+        Wire.write(pgm_read_byte(SpecFont[*string-0x20]+i));
       #else
-        SendByte(pgm_read_byte(myFont[*string-0x20]+i));
+        Wire.write(pgm_read_byte(myFont[*string-0x20]+i));
       #endif
     }
     *string++;
     }
+    Wire.endTransmission(); // stop transmitting
+
     }
     //==========================================================//
     // Prints a string in coordinates X Y, being multiples of 8.
@@ -252,19 +255,7 @@ const unsigned char SpecFont[][8] PROGMEM = {
     static void sendStrXY(const char *string, int X, int Y)
     {
     setXY(X,Y);
-    unsigned char i=0;
-    while(*string)
-    {
-    for(i=0;i<8;i++)
-    {
-      #ifdef SPECFONT
-        SendByte(pgm_read_byte(SpecFont[*string-0x20]+i));
-      #else
-        SendByte(pgm_read_byte(myFont[*string-0x20]+i));
-      #endif
-    }
-    *string++;
-    }
+    sendStr(string);
     }
     //==========================================================//
 
@@ -301,14 +292,14 @@ static void clear_display(void)
   for(k=0;k<4;k++)  //4
   { 
     setXY(0,k);    
+    Wire.beginTransmission(OLED_address); // begin transmitting
+    Wire.write(0x40);//data mode
+    for(i=0;i<128;i++)     //was 128
     {
-      for(i=0;i<128;i++)     //was 128
-      {
-        SendByte(0);         //clear all COL
-        //delay(10);
-      }
+      Wire.write(0);    //clear all COL
     }
-  }
+    Wire.endTransmission(); // stop transmitting
+ }
 }
     
 //==========================================================//
@@ -402,10 +393,13 @@ static void init_OLED(void)
   for(int j=0;j<4;j++)
   {
     setXY(0,j);
+    Wire.beginTransmission(OLED_address); // begin transmitting
+    Wire.write(0x40);//data mode
     for(int i=0;i<128;i++)     // show 128* 32 Logo
     {
-      SendByte(pgm_read_byte(logo+j*128+i));
-    }  
+      Wire.write(pgm_read_byte(logo+j*128+i));
+    }
+    Wire.endTransmission(); // stop transmitting
   }
 }
 
