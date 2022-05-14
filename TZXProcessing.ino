@@ -1463,9 +1463,12 @@ void wave() {
         //Pause block periods are stored in milliseconds not microseconds
         isPauseBlock = true;
         bitClear(workingPeriod,15);         //Clear pause block flag
-        pinState = !pinState;
-        pauseFlipBit = true;
-        wasPauseBlock = true;
+  
+        if (!wasPauseBlock) {
+          pinState = !pinState;
+          wasPauseBlock = true;
+          pauseFlipBit = true;
+        }
       } else {
          if(workingPeriod >= 1 && !wasPauseBlock) {
           pinState = !pinState;
