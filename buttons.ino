@@ -116,7 +116,7 @@ void button_wait(button_fn f) {
   }
 }
 
-bool button_wait_timeout(button_fn f, int timeout) {
+bool button_wait_timeout(button_fn f, unsigned int timeout) {
   // returns when the button has been released OR timeout reached
   // returns true if the button was still pressed (i.e. when timeout reached)
   while(f() && timeout > 0) {
