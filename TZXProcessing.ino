@@ -425,7 +425,7 @@ void TZXProcess() {
       if(ReadByte(bytesRead)==1) {
         currentID = outByte;
       } else {
-        currentID = EOF;
+        currentID = IDEOF;
       }
       //reset data block values
       currentBit=0;
@@ -1015,11 +1015,11 @@ void TZXProcess() {
             bitSet(currentPeriod, 15);
           } else {
             currentTask = GETID;
-            if(EndOfFile) currentID=EOF;  
+            if(EndOfFile) currentID=IDEOF;  
           } 
         break;
     
-        case EOF:
+        case IDEOF:
           //Handle end of file
           if(!count==0) {
             currentPeriod = 32768 + 20;
@@ -1129,7 +1129,7 @@ void StandardBlock() {
         currentBlockTask = READPARAM;
     
       }
-      if(EndOfFile) currentID=EOF;
+      if(EndOfFile) currentID=IDEOF;
     break;
   }
 }
@@ -1221,7 +1221,7 @@ void writeData4B() {
       pass = 0;
     } else if (r==0) {
       //End of file
-      currentID=EOF;
+      currentID=IDEOF;
       return;
     }
   }

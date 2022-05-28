@@ -38,7 +38,7 @@ PROGMEM const char TAPHdr[20] = {0x0,0x0,0x3,'Z','X','A','Y','F','i','l','e',' '
 #define ZXO                 0xFC    //ZX80 O file
 #define ZXP                 0xFD    //ZX81 P File
 #define TAP                 0xFE    //Tap File Mode
-#define EOF                 0xFF    //End of file
+#define IDEOF               0xFF    //End of file
 
 PROGMEM const char UEFFile[9] = {'U','E','F',' ','F','i','l','e','!'};
 #define UEF                 0xFA    //UEF file
