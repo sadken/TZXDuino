@@ -641,13 +641,7 @@ void printtextF(const char* text, int l) {  //Print text to screen.
   #endif
 
   #ifdef OLED1306
-    if ( l == 0 ) {
-      sendStrXY(space,0,0);
-      sendStrXY(text,0,0);
-    } else {
-      sendStrXY(space,0,1);
-      sendStrXY(text,0,1);
-    }
+    sendStrLine(text, l);
   #endif
 
   #ifdef P8544
@@ -679,11 +673,8 @@ void printtext(char* text, int l) {  //Print text to screen.
     lcd.print(text);
   #endif
 
-   #ifdef OLED1306
-      setXY(0,l);
-      sendStr(space);
-      setXY(0,l);
-      sendStr(text);
+  #ifdef OLED1306
+    sendStrLine(text, l);
   #endif
 
   #ifdef P8544

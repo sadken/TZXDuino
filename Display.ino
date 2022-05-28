@@ -227,38 +227,69 @@ const unsigned char SpecFont[][8] PROGMEM = {
     
     sendcommand(0x10+((8*col>>4)&0x0f)); //set high col address
     }
-    //==========================================================//
-    // Prints a string regardless the cursor position.
-    static void sendStr(const char *string)
-    {
-    unsigned char i=0;
-    Wire.beginTransmission(OLED_address); // begin transmitting
-    Wire.write(0x40);//data mode
-    while(*string)
-    {
-    for(i=0;i<8;i++)
-    {
-      #ifdef SPECFONT
-        Wire.write(pgm_read_byte(SpecFont[*string-0x20]+i));
-      #else
-        Wire.write(pgm_read_byte(myFont[*string-0x20]+i));
-      #endif
-    }
-    *string++;
-    }
-    Wire.endTransmission(); // stop transmitting
-
-    }
+    
     //==========================================================//
     // Prints a string in coordinates X Y, being multiples of 8.
     // This means we have 16 COLS (0-15) and 8 ROWS (0-7).
     static void sendStrXY(const char *string, int X, int Y)
     {
-    setXY(X,Y);
-    sendStr(string);
+      setXY(X,Y);
+      unsigned char i=0;
+      Wire.beginTransmission(OLED_address); // begin transmitting
+      Wire.write(0x40);//data mode
+      while(*string)
+      {
+        for(i=0;i<8;i++)
+        {
+          #ifdef SPECFONT
+            Wire.write(pgm_read_byte(SpecFont[*string-0x20]+i));
+          #else
+            Wire.write(pgm_read_byte(myFont[*string-0x20]+i));
+          #endif
+        }
+        *string++;
+      }
+      Wire.endTransmission(); // stop transmitting
     }
-    //==========================================================//
 
+    //==========================================================//
+    // Prints a string in coordinates X Y, being multiples of 8.
+    // This means we have 16 COLS (0-15) and 8 ROWS (0-7).
+    // This variant will assume X is zero, and display the text
+    // to row Y, blanking on the remainder of the line (if the
+    // text is < 16 characters long)
+    static void sendStrLine(const char *string, int Y)
+    {
+      setXY(0,Y);
+      unsigned char i=0;
+      unsigned char line_width=16;
+      Wire.beginTransmission(OLED_address); // begin transmitting
+      Wire.write(0x40);//data mode
+      while((line_width>0) && *string)
+      {
+        for(i=0;i<8;i++)
+        {
+          #ifdef SPECFONT
+            Wire.write(pgm_read_byte(SpecFont[*string-0x20]+i));
+          #else
+            Wire.write(pgm_read_byte(myFont[*string-0x20]+i));
+          #endif
+        }
+        *string++;
+        line_width--;
+      }
+      while(line_width>0)
+      {
+        for(i=0;i<8;i++)
+        {
+          Wire.write(0);
+        }
+        line_width--;
+      }
+      Wire.endTransmission(); // stop transmitting
+    } 
+    //==========================================================//
+    
 // Resets display depending on the actual mode.
 static void reset_display(void)
 {
