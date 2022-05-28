@@ -172,7 +172,19 @@ char PlayBytes[17];
 
 
 void setup() {
-  
+  pinMode(chipSelect, OUTPUT);      //Setup SD card chipselect pin
+  while (!sd.begin(chipSelect,SPI_SPEED)) {  
+    //Start SD card and check it's working
+    printtextF(PSTR("No SD Card"),0);
+    delay(1000);
+  } 
+
+  #ifdef USB_STORAGE_ENABLED
+  // need to do this as early as possible, to ensure mass storage gets enumerated
+  // see https://github.com/adafruit/Adafruit_TinyUSB_ArduinoCore/issues/4
+  setup_usb_storage();
+  #endif
+
   #ifdef LCDSCREEN16x2
     lcd.init();                     //Initialise LCD (16x2 type)
     lcd.backlight();
@@ -192,13 +204,11 @@ void setup() {
   #endif
   
   #ifdef OLED1306 
-     
     delay(1000);  //Needed!
     Wire.begin();
     init_OLED();
     delay(1500);              // Show logo
     reset_display();           // Clear logo and load saved mode
-
   #endif
 
   #ifdef P8544
@@ -207,23 +217,19 @@ void setup() {
     P8544_splash(); 
   #endif
 
-  
-  
-  pinMode(chipSelect, OUTPUT);      //Setup SD card chipselect pin
-  while (!sd.begin(chipSelect,SPI_SPEED)) {  
-    //Start SD card and check it's working
-    printtextF(PSTR("No SD Card"),0);
-    delay(1000);
-  } 
+  printtextF(PSTR("Starting.."),0);
   
   dir.open("/");                    //set SD to root directory
   TZXSetup();                       //Setup TZX specific options
   
-  setup_buttons();   
+  setup_buttons();
  
-  printtextF(PSTR("Starting.."),0);
+  getMaxFile();                     //get the total number of files in the directory
+  fileIndex=0;                      //move to the first file in the directory
+  loadEEPROM();
+
   delay(500);
-  
+
   #ifdef LCDSCREEN16x2
     lcd.clear();
   #endif
@@ -235,15 +241,11 @@ void setup() {
   #ifdef P8544
     lcd.clear();
   #endif
-       
-  getMaxFile();                     //get the total number of files in the directory
-  fileIndex=0;                      //move to the first file in the directory
+
   seekFile();                       
-  loadEEPROM();
 }
 
 void loop(void) {
-  
   if(start)
   {
     //TZXLoop only runs if a file is playing, and keeps the buffer full.

@@ -45,7 +45,14 @@
 #define btnMotor      6             //Motor Sense (connect pin to gnd to play, NC for pause)
 
 // define HAVE_EEPROM if your device has an eeprom compatible with <EEPROM.h>
+// e.g. Seeeduino Xiao M0 does NOT have eeprom, so comment this out
 #define HAVE_EEPROM
+
+// define USB_STORAGE_ENABLED if your device has programmable USB interface compatible with TinyUSB
+// (and you wish to enable it, so that your device appears as a mass storage USB disk when plugged into a PC
+//  exposing the filesystem from your SD card)
+// e.g. This works well with Seeeduino Xiao M0 but cannot be used with many standard AVR devices
+//#define USB_STORAGE_ENABLED
 
 
 //#define SERIALSCREEN  1           /*For Testing purposes only */
