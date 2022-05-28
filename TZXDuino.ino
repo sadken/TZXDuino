@@ -86,10 +86,10 @@
 
 #ifdef P8544
   const size_t screen_width_chars = 14;
-  const char * space = PSTR("              ");
+  const char space[] PROGMEM = "              ";
 #else
   const size_t screen_width_chars = 16;
-  const char * space = PSTR("                ");
+  const char space[] PROGMEM = "                ";
 #endif
 
 #ifdef LCDSCREEN16x2
