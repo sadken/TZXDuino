@@ -203,15 +203,18 @@ const unsigned char SpecFont[][8] PROGMEM = {
     // and 8 ROWS (0-7).
     static void sendChar(unsigned char data)
     {
-    Wire.beginTransmission(OLED_address); // begin transmitting
-    Wire.write(0x40);//data mode
-    for(int i=0;i<8;i++)
-    #ifdef SPECFONT
-      Wire.write(pgm_read_byte(SpecFont[data-0x20]+i));
-    #else
-      Wire.write(pgm_read_byte(myFont[data-0x20]+i));
-    #endif
-    Wire.endTransmission(); // stop transmitting
+      unsigned char i;
+      Wire.beginTransmission(OLED_address); // begin transmitting
+      Wire.write(0x40);//data mode
+      for(i=0;i<8;i++)
+      {
+        #ifdef SPECFONT
+          Wire.write(pgm_read_byte(SpecFont[data-0x20]+i));
+        #else
+          Wire.write(pgm_read_byte(myFont[data-0x20]+i));
+        #endif
+      }
+      Wire.endTransmission(); // stop transmitting
     } 
     //==========================================================//
     // Set the cursor position in a 16 COL * 2 ROW map.
@@ -227,29 +230,19 @@ const unsigned char SpecFont[][8] PROGMEM = {
     
     sendcommand(0x10+((8*col>>4)&0x0f)); //set high col address
     }
-    
+
+#if defined(BUFFER_LENGTH) && BUFFER_LENGTH<129
     //==========================================================//
     // Prints a string in coordinates X Y, being multiples of 8.
     // This means we have 16 COLS (0-15) and 8 ROWS (0-7).
+    // Optimised for platforms where Wire has a small I2C buffer
     static void sendStrXY(const char *string, int X, int Y)
     {
       setXY(X,Y);
-      unsigned char i=0;
-      Wire.beginTransmission(OLED_address); // begin transmitting
-      Wire.write(0x40);//data mode
       while(*string)
       {
-        for(i=0;i<8;i++)
-        {
-          #ifdef SPECFONT
-            Wire.write(pgm_read_byte(SpecFont[*string-0x20]+i));
-          #else
-            Wire.write(pgm_read_byte(myFont[*string-0x20]+i));
-          #endif
-        }
-        *string++;
+        sendChar(*string++);
       }
-      Wire.endTransmission(); // stop transmitting
     }
 
     //==========================================================//
@@ -258,10 +251,105 @@ const unsigned char SpecFont[][8] PROGMEM = {
     // This variant will assume X is zero, and display the text
     // to row Y, blanking on the remainder of the line (if the
     // text is < 16 characters long)
+    // Optimised for platforms where Wire has a small I2C buffer
     static void sendStrLine(const char *string, int Y)
     {
       setXY(0,Y);
-      unsigned char i=0;
+      unsigned char line_width=16;
+      while((line_width>0) && *string)
+      {
+        sendChar(*string++);
+        line_width--;
+      }
+      while(line_width>0)
+      {
+        sendChar(' ');
+        line_width--;
+      }
+    } 
+
+    //==========================================================//
+    // Clears the display by sending 0 to all the screen map.
+    // Optimised for platforms where Wire has a small I2C buffer
+    static void clear_display(void)
+    {
+      unsigned char i,j,k;
+      for(k=0;k<4;k++)
+      { 
+        setXY(0,k);
+        for(j=0;j<8;j++)
+        {   
+          Wire.beginTransmission(OLED_address); // begin transmitting
+          Wire.write(0x40);//data mode
+          for(i=0;i<16;i++)
+          {
+            Wire.write(0);    //clear all COL
+          }
+          Wire.endTransmission(); // stop transmitting
+        }
+      }
+    }
+
+    //==========================================================//
+    // Display 128x32 logo
+    // Optimised for platforms where Wire has a small I2C buffer
+    static void display_logo(void)
+    {
+      unsigned char i,j,k;
+      const byte * logop = logo;
+      for(k=0;k<4;k++)
+      { 
+        setXY(0,k);
+        for(j=0;j<8;j++)
+        {   
+          Wire.beginTransmission(OLED_address); // begin transmitting
+          Wire.write(0x40);//data mode
+          for(i=0;i<16;i++) // send next 16 bytes of logo
+          {
+            Wire.write(pgm_read_byte(logop++));
+          }
+          Wire.endTransmission(); // stop transmitting
+        }
+      }
+    }
+
+#else
+    //==========================================================//
+    // Prints a string in coordinates X Y, being multiples of 8.
+    // This means we have 16 COLS (0-15) and 8 ROWS (0-7).
+    // Optimised for platforms/libraries that have a larger I2C buffer
+    static void sendStrXY(const char *string, int X, int Y)
+    {
+      setXY(X,Y);
+      unsigned char i;
+      while(*string)
+      {
+        Wire.beginTransmission(OLED_address); // begin transmitting
+        Wire.write(0x40);//data mode
+        for(i=0;i<8;i++)
+        {
+          #ifdef SPECFONT
+            Wire.write(pgm_read_byte(SpecFont[*string-0x20]+i));
+          #else
+            Wire.write(pgm_read_byte(myFont[*string-0x20]+i));
+          #endif
+        }
+        Wire.endTransmission(); // stop transmitting
+        *string++;
+      }
+    }
+
+    //==========================================================//
+    // Prints a string in coordinates X Y, being multiples of 8.
+    // This means we have 16 COLS (0-15) and 8 ROWS (0-7).
+    // This variant will assume X is zero, and display the text
+    // to row Y, blanking on the remainder of the line (if the
+    // text is < 16 characters long)
+    // Optimised for platforms/libraries that have a larger I2C buffer
+    static void sendStrLine(const char *string, int Y)
+    {
+      setXY(0,Y);
+      unsigned char i;
       unsigned char line_width=16;
       Wire.beginTransmission(OLED_address); // begin transmitting
       Wire.write(0x40);//data mode
@@ -287,16 +375,54 @@ const unsigned char SpecFont[][8] PROGMEM = {
         line_width--;
       }
       Wire.endTransmission(); // stop transmitting
-    } 
+    }
+
     //==========================================================//
+    // Clears the display by sending 0 to all the screen map.
+    // Optimised for platforms/libraries that have a larger I2C buffer
+    static void clear_display(void)
+    {
+      unsigned char i,j;
+      for(j=0;j<4;j++)
+      { 
+        setXY(0,j);    
+        Wire.beginTransmission(OLED_address); // begin transmitting
+        Wire.write(0x40);//data mode
+        for(i=0;i<128;i++)
+        {
+          Wire.write(0);    //clear all COL
+        }
+        Wire.endTransmission(); // stop transmitting
+      }
+    }
+
+    //==========================================================//
+    // Display 128x32 logo
+    // Optimised for platforms/libraries that have a larger I2C buffer
+    static void display_logo(void)
+    {
+      unsigned char i,j;
+      const byte * logop = logo;
+      for(j=0;j<4;j++)
+      {
+        setXY(0,j);
+        Wire.beginTransmission(OLED_address); // begin transmitting
+        Wire.write(0x40);//data mode
+        for(i=0;i<128;i++)     // show 128* 32 Logo
+        {
+          Wire.write(pgm_read_byte(logop++));
+        }
+        Wire.endTransmission(); // stop transmitting
+      }
+    }
     
+#endif
+
 // Resets display depending on the actual mode.
 static void reset_display(void)
 {
   displayOff();
   clear_display();
-
-  
   displayOn();
 }
 
@@ -315,24 +441,6 @@ void displayOff(void)
   sendcommand(0xae);    //display off
 }
 
-//==========================================================//
-// Clears the display by sendind 0 to all the screen map.
-static void clear_display(void)
-{
-  unsigned char i,k;
-  for(k=0;k<4;k++)  //4
-  { 
-    setXY(0,k);    
-    Wire.beginTransmission(OLED_address); // begin transmitting
-    Wire.write(0x40);//data mode
-    for(i=0;i<128;i++)     //was 128
-    {
-      Wire.write(0);    //clear all COL
-    }
-    Wire.endTransmission(); // stop transmitting
- }
-}
-    
 //==========================================================//
 // Inits oled and draws logo at startup
 static void init_OLED(void)
@@ -421,17 +529,7 @@ static void init_OLED(void)
     //sendcommand(0x02);         // Set Memory Addressing Mode ab Page addressing mode(RESET)  
   
   clear_display();
-  for(int j=0;j<4;j++)
-  {
-    setXY(0,j);
-    Wire.beginTransmission(OLED_address); // begin transmitting
-    Wire.write(0x40);//data mode
-    for(int i=0;i<128;i++)     // show 128* 32 Logo
-    {
-      Wire.write(pgm_read_byte(logo+j*128+i));
-    }
-    Wire.endTransmission(); // stop transmitting
-  }
+  display_logo();
 }
 
 #endif
