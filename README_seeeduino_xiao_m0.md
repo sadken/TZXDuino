@@ -6,6 +6,7 @@ I did a laughably small amount of research and decided that Seeeduino Xiao M0 wo
 2. It has 3v3 operation which I figured could enable use of smaller simpler peripherals (SD reader, for example)
 3. It has a higher clock speed
 4. It is 'Arduino Compatible'
+5. It is cheap. Incredibly cheap.
 
 This is my first Arduino project - I know people probably usually pick an easy one like a blinking LED but where's the fun in that.
 
@@ -14,8 +15,9 @@ My eventual goal is to have something that:
 1. Fits in a cassette tape
 2. Interfaces with ZX Spectrum +2 tape player via a playback head
 3. Detects the motion of the spindles for play, stop, also fastforward and rewind (to skip TZX blocks)
-4. (stretch goal) Supports recording direct to SD device
-5. (stretch goal) Hosts a ZX Spectrum binary that can be downloaded to the spectrum to run a native file chooser menu on the ZX Spectrum for 'hands free' usage.
+4. (stretch goal) Support USB mass storage so files can be copied/etc without removing SD Card.  DONE!
+5. (stretch goal) Supports recording direct to SD device
+6. (stretch goal) Hosts a ZX Spectrum binary that can be downloaded to the spectrum to run a native file chooser menu on the ZX Spectrum for 'hands free' usage.
 
 Not all of those goals are necessarily sensible or even useful, so for now I'm just focusing on the first two with a part of a plan for items 3 and 4.  It's clear that I would need a large number of GPIOs to achieve this.
 
@@ -55,13 +57,20 @@ I've mapped this to PIN A3, and I've chosen my resistors to be 0Ohm, 1K, 2.4K, 1
 12.  GND
 13.  5v (present when USB connected; out to LiPo charger TP4056)
 
+I might change/reorder some of the pins. In particular:
+* pin 0 supports DAC and ADC (and seems to be highly compatible with direct write to PORT;  I couldn't seem to get that to work for pin 7 yet).  This might be advantageous for cassette interfacing.
+* I might be able to free up a pin (CS for SD CARD) because it might be possible to just tie that to ground and have everything work.  Annoyingly the sdfat library requires a pin, but maybe a dummy would be sufficient.
+
 ## SD CARD READER
 I'm using one that natively supports 3v3 and picked the smallest I could find.  https://www.adafruit.com/product/4682
 
 I intend to cut it down even further with a saw (because I am not using SDIO, and that chip on the right is just some resistors that I could add externally)
 
+Noting that, now that USB Mass Storage support is added, I *could* use a nonremoval SPI flash storage device, instead of an SD CARD READER.  Unclear if that would be beneficial.  Adafruit sells a nonreplacable-SD-card, which could be nice but has a fairly low capacity (https://learn.adafruit.com/adafruit-spi-flash-sd-card), so if you need capacity, SD CARD seems the way to go.
+
 ## OLED
-I'm using one of the many 'generic' OLED1306 modules, this one being 128x64
+I'm using one of the many 'generic' OLED1306 modules, this one being 128x64 pixels, which allows for 16x8 characters on a 8x8 grid.
+By default, TZXDuino will use just four rows (16x4), at a pseudo-expanded ('twice height') font  -  which I think is actually a quirk rather than necessarily by design.  It would be possible to change to 16x8 characters but no immediate benefits since nothing in TZXDuino uses the extra space.  MAXDuino does something similar here, but has easy ways to change the configuration to 16x8, and it also uses the additional space.
 
 ## LiPo CHARGING / POWER CIRCUIT
 I'll write this up separately, probably in a Seeeduino forum.  I'm using a 'generic' TP4056 module connected to the Seeeduino 5v out (so it can charge the battery when the Xiao is plugged into a USB power source); the LiPo is connected to the TP4056 in the usual way but across the same terminals I have a tiny 3v3 step down "buck" device - the output of which is connected to the Seeeduino Xiao 3v3 line.
