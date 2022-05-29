@@ -12,6 +12,16 @@ I'll also maintain other branches occasionally, for experiments or divergent ide
 
 For my SAMD (Seeeduino Xiao M0) support specifically, please see [README_seeeduino_xiao_m0.md](README_seeeduino_xiao_m0.md)
 
+## Recent feature additions
+* improved directory navigation performance (many more directories are supported, up/down latency is better)
+* flicker-free text updates on OLED1306
+* USB Mass Storage (your files from your SD card are browseable when device is plugged into USB)
+* reduce firmware size of Menu system
+* improved "scrollText" routine for scrolling long filenames that don't fit on the screen
+* support for ADC-style button interface
+* fixed annoying buzzing at end-of-file
+* SAMD XIAO M0 fully supported (custom timer code, pause handling)
+
 ## Credits
 * Original Code and Testing: Andrew Beer & Duncan Edwards
 * Additional support, ideas, and testing: Duncan Edwards
