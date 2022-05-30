@@ -222,7 +222,7 @@ const unsigned char SpecFont[][8] PROGMEM = {
     {
     sendcommand(0xb0+row); //set page address
     
-    #ifdef OLED1306_1.3
+    #ifdef OLED1306_1_3
         sendcommand(0x02+(8*col&0x0f)); //set low col address
     #else
         sendcommand(0x00+(8*col&0x0f)); //set low col address
