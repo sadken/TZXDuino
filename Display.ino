@@ -252,7 +252,7 @@ const unsigned char SpecFont[][8] PROGMEM = {
     // to row Y, blanking on the remainder of the line (if the
     // text is < 16 characters long)
     // Optimised for platforms where Wire has a small I2C buffer
-    static void sendStrLine(const char *string, int Y)
+    static void sendStrLine(const char * string, int Y)
     {
       setXY(0,Y);
       unsigned char line_width=16;
@@ -318,14 +318,15 @@ const unsigned char SpecFont[][8] PROGMEM = {
     // Prints a string in coordinates X Y, being multiples of 8.
     // This means we have 16 COLS (0-15) and 8 ROWS (0-7).
     // Optimised for platforms/libraries that have a larger I2C buffer
+    // since it sends (up to) 129 bytes of data in one go
     static void sendStrXY(const char *string, int X, int Y)
     {
       setXY(X,Y);
       unsigned char i;
+      Wire.beginTransmission(OLED_address); // begin transmitting
+      Wire.write(0x40);//data mode
       while(*string)
       {
-        Wire.beginTransmission(OLED_address); // begin transmitting
-        Wire.write(0x40);//data mode
         for(i=0;i<8;i++)
         {
           #ifdef SPECFONT
@@ -334,9 +335,9 @@ const unsigned char SpecFont[][8] PROGMEM = {
             Wire.write(pgm_read_byte(myFont[*string-0x20]+i));
           #endif
         }
-        Wire.endTransmission(); // stop transmitting
         *string++;
       }
+      Wire.endTransmission(); // stop transmitting
     }
 
     //==========================================================//
@@ -346,6 +347,7 @@ const unsigned char SpecFont[][8] PROGMEM = {
     // to row Y, blanking on the remainder of the line (if the
     // text is < 16 characters long)
     // Optimised for platforms/libraries that have a larger I2C buffer
+    // since it sends (up to) 129 bytes of data in one go
     static void sendStrLine(const char *string, int Y)
     {
       setXY(0,Y);
@@ -380,6 +382,7 @@ const unsigned char SpecFont[][8] PROGMEM = {
     //==========================================================//
     // Clears the display by sending 0 to all the screen map.
     // Optimised for platforms/libraries that have a larger I2C buffer
+    // since it sends 129 bytes at a time
     static void clear_display(void)
     {
       unsigned char i,j;
@@ -399,6 +402,7 @@ const unsigned char SpecFont[][8] PROGMEM = {
     //==========================================================//
     // Display 128x32 logo
     // Optimised for platforms/libraries that have a larger I2C buffer
+    // since it sends 129 bytes at a time
     static void display_logo(void)
     {
       unsigned char i,j;
