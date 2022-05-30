@@ -641,7 +641,15 @@ void printtextF(const char* text, int l) {  //Print text to screen.
   #endif
 
   #ifdef OLED1306
-    sendStrLine(text, l);
+    // handle the fact that text is in firmware whereas our OLED1306 sendStrLine expects strings to be in RAM,
+    // so just copy to RAM. Compared to implementing two variants of sendStrLine and sendStrXY (where
+    // string is in firmware or string is in ram), copying to RAM here is (slightly) the lesser of two evils.
+    // (on AVR, the below uses 12 bytes less firmware (but 17 bytes more RAM), than the alternative, assuming
+    // that strcpy_P has already been added to the image due to some other usage elsewhere in this project).
+    // For today, that's the correct tradeoff
+    static char _tmp[17];
+    strcpy_P(_tmp, text);
+    sendStrLine(_tmp, l);
   #endif
 
   #ifdef P8544
@@ -653,7 +661,7 @@ void printtextF(const char* text, int l) {  //Print text to screen.
    
 }
 
-void printtext(char* text, int l) {  //Print text to screen. 
+void printtext(const char* text, int l) {  //Print text to screen. 
   
   #ifdef SERIALSCREEN
   Serial.println(text);
