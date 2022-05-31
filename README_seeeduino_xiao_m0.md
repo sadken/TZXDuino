@@ -42,14 +42,16 @@ I've mapped this to PIN A3, and I've chosen my resistors to be 0Ohm, 1K, 2.4K, 1
 
 # Peripherals and connections
 
-0.  RESERVED for play/ffwd/rwd detecting enhancemenet (reflectometer 1 strobe out (play/ffwd spindle)) 
-1.  RESERVED for play/ffwd/rwd detecting enhancemenet (reflectometer 2 strobe out (rwd spindle))
-2.  CS for SD CARD (SPI)
-3.  ADC for buttons (hopefully also reflectometer 1/2 return)
-4.  RESERVED for audio input (direct recording to SD - future enhancement)
+Subject to change, but trying to squeeze everything into the available GPIOs:
+
+0.  Audio Output (hardwire to cassette head or jack) (might also be used for audio input)
+1.  RESERVED for play/ffwd/rwd detecting enhancemenet (reflectometer 1 strobe out (play/ffwd spindle)) 
+2.  RESERVED for play/ffwd/rwd detecting enhancemenet (reflectometer 2 strobe out (rwd spindle))
+3.  ADC for buttons
+4.  RESERVED for reflectometer 1/2 return
 5.  SCK I2C for OLED
 6.  SDA I2C for OLED
-7.  Audio Output (hardwire to cassette head)
+7.  SPARE (but might be required for audio input circuitry)
 8.  CLK for SD CARD (SPI)
 9.  MISO for SD CARD (SPI)
 10.  MOSI for SD CARD (SPI)
@@ -57,9 +59,7 @@ I've mapped this to PIN A3, and I've chosen my resistors to be 0Ohm, 1K, 2.4K, 1
 12.  GND
 13.  5v (present when USB connected; out to LiPo charger TP4056)
 
-I might change/reorder some of the pins. In particular:
-* pin 0 supports DAC and ADC (and seems to be highly compatible with direct write to PORT;  I couldn't seem to get that to work for pin 7 yet).  This might be advantageous for cassette interfacing.
-* I might be able to free up a pin (CS for SD CARD) because it might be possible to just tie that to ground and have everything work.  Annoyingly the sdfat library requires a pin, but maybe a dummy would be sufficient.
+Previously I had tied one of the GPIOs to the SD CARD's CS (chip select) line, but it seems to work fine without this, so long as (1) I tie the SD CARD CS to Ground, and (2) I initialise the sdfat library with a 'spare' gpio pin.  Well, there aren't really any spare GPIO pins, but you can use one of the LED GPIOs - and this has the excellent advantage of doubling as an SD activity status light!  :+1:
 
 ## SD CARD READER
 I'm using one that natively supports 3v3 and picked the smallest I could find.  https://www.adafruit.com/product/4682
