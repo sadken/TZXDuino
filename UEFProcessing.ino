@@ -2,7 +2,7 @@
 void ReadUEFHeader() {
   //Read and check first 12 bytes for a UEF header
   char uefHeader[9];
-  int i=0;
+  byte i=0;
   
   if(entry.seekSet(0)) {
     i = entry.read(uefHeader,9);

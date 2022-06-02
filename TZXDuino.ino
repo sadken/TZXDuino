@@ -520,8 +520,6 @@ void playFile() {
     scrollPos=0;
     if (!PauseAtStart) pauseOn = false;
     scrollText(fileName);
-    currpct=100;
-    lcdsegs=0;      
     TZXPlay(); 
       #ifdef P8544
         lcd.gotoRc(3,38);

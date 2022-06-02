@@ -175,7 +175,6 @@ word TstatesperSample=0;
 byte usedBitsInLastByte=8;
 word loopCount=0;
 byte seqPulses=0;
-byte input[11];
 
 byte forcePause0=0;
 unsigned long loopStart=0;
@@ -194,12 +193,10 @@ bool EndOfFile=false;
 byte lastByte;
 //byte firstTime=true;
 
-byte currpct = 100;
-byte newpct = 0;
-byte spinpos = 0;
+signed char currpct;
+signed char newpct;
 unsigned long timeDiff2 = 0;
-unsigned int lcdsegs = 0;
-unsigned int offset = 2;
+unsigned int lcdsegs;
 
 int TSXspeedup = 1;
 int BAUDRATE = 1200;
