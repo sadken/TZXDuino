@@ -84,12 +84,18 @@
 #include "buttons.h"
 #include "version.h"
 
+#ifdef P8544
+  const size_t screen_width_chars = 14;
+  const char space[] PROGMEM = "              ";
+#else
+  const size_t screen_width_chars = 16;
+  const char space[] PROGMEM = "                ";
+#endif
 
 #ifdef LCDSCREEN16x2
   #include <Wire.h> 
   #include <LiquidCrystal_I2C.h>
   LiquidCrystal_I2C lcd(LCD_I2C_ADDR,16,2); // set the LCD address to 0x27 for a 16 chars and 2 line display
-  char indicators[] = {'|', '/', '-',0};
   uint8_t SpecialChar [8]= { 0x00, 0x10, 0x08, 0x04, 0x02, 0x01, 0x00, 0x00 };
 #endif
 
@@ -101,17 +107,11 @@
   const int colorB = 000;
 
   rgb_lcd lcd; 
-  char indicators[] = {'|', '/', '-',0};
   uint8_t SpecialChar [8]= { 0x00, 0x10, 0x08, 0x04, 0x02, 0x01, 0x00, 0x00 };
 #endif
 
 #ifdef OLED1306 
   #include <Wire.h> 
-  
-  char line0[17];
-  char line1[17];
-  char lineclr[17];
-  char indicators[] = {'|', '/', '-',92}; 
 #endif
 
 #ifdef P8544
@@ -123,7 +123,6 @@
   byte reset_pin = 3;
   byte cs_pin = 4;
   pcd8544 lcd(dc_pin, reset_pin, cs_pin);
-  char indicators[] = {'|', '/', '-',0};
   uint8_t SpecialChar [8]= { 0x00, 0x10, 0x08, 0x04, 0x02, 0x01, 0x00, 0x00 };
   #define backlight_pin 2
   
@@ -144,7 +143,7 @@ SDTYPE sd;                          // Initialise SD card
 FILETYPE entry, dir, tmpdir;        // SD card current file (=entry) and current directory (=dir) objects, plus one temporary
 
 char fileName[maxFilenameLength + 1];     //Current filename
-int fileNameLen;
+unsigned int fileNameLen;
 uint16_t fileIndex;                    //Index of current file, relative to current directory
 uint16_t prevSubDirIndex[nMaxPrevSubDirs];  //History when stepping into subdirectories (sequence of indexes of directory entries, relative to root)
 byte subdir = 0;
@@ -161,8 +160,8 @@ bool motorState = true;                //Current motor control state
 bool oldMotorState = true;             //Last motor control state
 #endif
 
-byte start = 0;                     //Currently playing flag
-byte pauseOn = 0;                   //Pause state
+bool start = false;                     //Currently playing flag
+bool pauseOn = false;                   //Pause state
 uint16_t lastIndex = 0;             //Index of last file in current directory
 bool isDir = false;                     //Is the current file a directory
 unsigned long timeDiff = 0;         //button debounce
@@ -172,7 +171,19 @@ char PlayBytes[17];
 
 
 void setup() {
-  
+  pinMode(chipSelect, OUTPUT);      //Setup SD card chipselect pin
+  while (!sd.begin(chipSelect,SPI_SPEED)) {  
+    //Start SD card and check it's working
+    printtextF(PSTR("No SD Card"),0);
+    delay(1000);
+  } 
+
+  #ifdef USB_STORAGE_ENABLED
+  // need to do this as early as possible, to ensure mass storage gets enumerated
+  // see https://github.com/adafruit/Adafruit_TinyUSB_ArduinoCore/issues/4
+  setup_usb_storage();
+  #endif
+
   #ifdef LCDSCREEN16x2
     lcd.init();                     //Initialise LCD (16x2 type)
     lcd.backlight();
@@ -192,13 +203,11 @@ void setup() {
   #endif
   
   #ifdef OLED1306 
-     
     delay(1000);  //Needed!
     Wire.begin();
     init_OLED();
     delay(1500);              // Show logo
     reset_display();           // Clear logo and load saved mode
-
   #endif
 
   #ifdef P8544
@@ -207,23 +216,19 @@ void setup() {
     P8544_splash(); 
   #endif
 
-  
-  
-  pinMode(chipSelect, OUTPUT);      //Setup SD card chipselect pin
-  while (!sd.begin(chipSelect,SPI_SPEED)) {  
-    //Start SD card and check it's working
-    printtextF(PSTR("No SD Card"),0);
-    delay(1000);
-  } 
+  printtextF(PSTR("Starting.."),0);
   
   dir.open("/");                    //set SD to root directory
   TZXSetup();                       //Setup TZX specific options
   
-  setup_buttons();   
+  setup_buttons();
  
-  printtextF(PSTR("Starting.."),0);
+  getMaxFile();                     //get the total number of files in the directory
+  fileIndex=0;                      //move to the first file in the directory
+  loadEEPROM();
+
   delay(500);
-  
+
   #ifdef LCDSCREEN16x2
     lcd.clear();
   #endif
@@ -235,16 +240,12 @@ void setup() {
   #ifdef P8544
     lcd.clear();
   #endif
-       
-  getMaxFile();                     //get the total number of files in the directory
-  fileIndex=0;                      //move to the first file in the directory
+
   seekFile();                       
-  loadEEPROM();
 }
 
 void loop(void) {
-  
-  if(start==1)
+  if(start)
   {
     //TZXLoop only runs if a file is playing, and keeps the buffer full.
     TZXLoop();
@@ -252,17 +253,11 @@ void loop(void) {
     digitalWrite(outputPin, LOW);    //Keep output LOW while no file is playing.
   }
   
-  if((millis()>=scrollTime) && start==0 && (strlen(fileName)>15)) {
+  if((millis()>=scrollTime) && !start && fileNameLen > screen_width_chars-1) {
     //Filename scrolling only runs if no file is playing to prevent I2C writes 
     //conflicting with the playback Interrupt
     scrollTime = millis()+scrollSpeed;
     scrollText(fileName);
-    scrollPos +=1;
-    if(scrollPos>strlen(fileName)) {
-      scrollPos=0;
-      scrollTime=millis()+scrollWait;
-      scrollText(fileName);
-    }
   }
 
   #ifdef HAVE_MOTOR
@@ -274,22 +269,20 @@ void loop(void) {
       
       if(button_play()) {
         //Handle Play/Pause button
-        if(start==0) {
+        if(!start) {
           //If no file is play, start playback
           playFile();
           delay(200);
         } else {
           //If a file is playing, pause or unpause the file                  
-          if (pauseOn == 0) {
+          pauseOn = !pauseOn;
+          if (pauseOn) {
             printtextF(PSTR("Paused "),0);
             Counter1();             
             #ifdef P8544 
               lcd.gotoRc(3,38);
               lcd.bitmap(Paused, 1, 6);
             #endif
-            
-            pauseOn = 1;
-            
           } else {
            printtextF(PSTR("Playing"),0);
            Counter1();
@@ -298,31 +291,29 @@ void loop(void) {
               lcd.gotoRc(3,38);
               lcd.bitmap(Play, 1, 6);               
             #endif
-            
-            pauseOn = 0;
           }
        }
        button_wait(button_play);
      }
 
-     if(button_root() && start==0){
+     if(button_root() && !start){
       
        menuMode();
        printtextF(PSTR(VERSION),0);
        //lcd_clearline(1);
-       printtextF(PSTR("                "),1);
+       printtextF(space,1);
        scrollPos=0;
        scrollText(fileName);
        
        button_wait(button_root);
      }
 
-     if(button_stop() && start==1) {
+     if(button_stop() && start) {
        stopFile();
        button_wait(button_stop);
      }
 
-     if(button_stop() && start==0 && subdir >0) {  
+     if(button_stop() && !start && subdir >0) {  
        subdir--;
        uint16_t this_directory=prevSubDirIndex[subdir];
     
@@ -342,7 +333,7 @@ void loop(void) {
        button_wait(button_stop);
      }     
 
-     if (start==0)
+     if (!start)
      {
         if(button_down()) 
         {
@@ -350,11 +341,13 @@ void loop(void) {
           scrollTime=millis()+scrollWait;
           scrollPos=0;
           downFile();
-          //while(button_down()) {
-            //prevent button repeats by waiting until the button is released.
-            delay(browseDelay);
+          if (button_wait_timeout(button_down, browseDelay)) {
             reduceBrowseDelay();
-          //}
+          }
+          else
+          {
+            resetBrowseDelay();    
+          }
         }
 
        else if(button_up()) 
@@ -363,11 +356,13 @@ void loop(void) {
          scrollTime=millis()+scrollWait;
          scrollPos=0;
          upFile();       
-         //while(button_up()) {
-           //prevent button repeats by waiting until the button is released.
-            delay(browseDelay);
-            reduceBrowseDelay();
-         //   }
+         if (button_wait_timeout(button_up, browseDelay)) {
+           reduceBrowseDelay();
+         }
+         else
+         {
+           resetBrowseDelay();    
+         }
        }
        else
        {
@@ -375,29 +370,11 @@ void loop(void) {
        }
      }
 
-     if(button_up() && start==1) {
- /*     
-       while(button_up()) {
-         //prevent button repeats by waiting until the button is released.
-         delay(50); 
-       }
- */      
-     }
-
-     if(button_down() && start==1) {
-/*
-       while(button_down()) {
-         //prevent button repeats by waiting until the button is released.
-         delay(50);
-       }
-*/
-     }
-
      #ifdef HAVE_MOTOR
-     if(start==1 && (oldMotorState!=motorState)) {  
+     if(start && (oldMotorState!=motorState)) {  
        //if file is playing and motor control is on then handle current motor state
        //Motor control works by pulling the btnMotor pin to ground to play, and NC to stop
-       if(motorState && pauseOn==0) {
+       if(motorState && !pauseOn) {
         printtextF(PSTR("Paused "),0);
         Counter1();
         
@@ -405,9 +382,9 @@ void loop(void) {
               lcd.gotoRc(3,38);
               lcd.bitmap(Paused, 1, 6);
             #endif
-         pauseOn = 1;
+         pauseOn = true;
        } 
-       if(!motorState && pauseOn==1) {
+       if(!motorState && pauseOn) {
          printtextF(PSTR("Playing"),0);
          Counter1();
          
@@ -416,7 +393,7 @@ void loop(void) {
               lcd.bitmap(Play, 1, 6);              
             #endif
             
-         pauseOn = 0;
+         pauseOn = false;
        }
        oldMotorState=motorState;
      }
@@ -493,20 +470,17 @@ void seekFile() {
   isDir = (entry.isDir() || 0==strcmp(fileName, "ROOT"));
   entry.close();
 
-  PlayBytes[0]='\0'; 
   if (isDir==1) {
-    strcat_P(PlayBytes,PSTR(VERSION));
+    printtext(PSTR(VERSION),0);
     #ifdef P8544
       printtext("                 ",3);
     #endif
   } else {
-    //ltoa(filesize,PlayBytes,10);
-    strcat_P(PlayBytes,PSTR("Select File.."));
+    printtext(PSTR("Select File.."),0);
     #ifdef P8544
       printtext("                 ",3);
     #endif
   }
-  printtext(PlayBytes,0);
 
   scrollPos=0;
   scrollText(fileName);
@@ -515,7 +489,7 @@ void seekFile() {
 
 void stopFile() {
   TZXStop();
-  if(start==1){
+  if(start){
     printtextF(PSTR("Stopped"),0);
     //lcd_clearline(0);
     //lcd.print(F("Stopped"));
@@ -523,7 +497,7 @@ void stopFile() {
       lcd.gotoRc(3,38);
       lcd.bitmap(Stop, 1, 6);
     #endif
-    start=0;
+    start=false;
   }
 }
 
@@ -544,23 +518,21 @@ void playFile() {
   {
     printtextF(PSTR("Playing         "),0);    
     scrollPos=0;
-    if (PauseAtStart == false) pauseOn = 0;
+    if (!PauseAtStart) pauseOn = false;
     scrollText(fileName);
-    currpct=100;
-    lcdsegs=0;      
     TZXPlay(); 
       #ifdef P8544
         lcd.gotoRc(3,38);
         lcd.bitmap(Play, 1, 6);
       #endif
-    start=1; 
-    if (PauseAtStart == true) {
+    start=true; 
+    if (PauseAtStart) {
       printtextF(PSTR("Paused "),0);
       #ifdef P8544
         lcd.gotoRc(3,38);
         lcd.bitmap(Play, 1, 6);
       #endif
-      pauseOn = 1;
+      pauseOn = true;
       TZXPause();
     }
   }
@@ -607,137 +579,41 @@ void changeDir() {
 
 void scrollText(char* text)
 {
-  #ifdef LCDSCREEN16x2
-  //Text scrolling routine.  Setup for 16x2 screen so will only display 16 chars
-  if(scrollPos<0) scrollPos=0;
-  char outtext[17];
-  if(isDir) { outtext[0]= 0x3E; 
-    for(int i=1;i<16;i++)
-    {
-      int p=i+scrollPos-1;
-      if(p<strlen(text)) 
-      {
-        outtext[i]=text[p];
-      } else {
-        outtext[i]='\0';
-      }
-    }
-  } else { 
-    for(int i=0;i<16;i++)
-    {
-      int p=i+scrollPos;
-      if(p<strlen(text)) 
-      {
-        outtext[i]=text[p];
-      } else {
-        outtext[i]='\0';
-      }
-    }
+  if(scrollPos==0) {
+    scrollTime = millis()+scrollWait;
   }
-  outtext[16]='\0';
-  printtext(outtext,1);
-  //lcd_clearline(1);
-  //lcd.print(outtext);
-  #endif
 
-  #ifdef RGBLCD
-  //Text scrolling routine.  Setup for 16x2 screen so will only display 16 chars
-  if(scrollPos<0) scrollPos=0;
-  char outtext[17];
-  if(isDir) { outtext[0]= 0x3E; 
-    for(int i=1;i<16;i++)
-    {
-      int p=i+scrollPos-1;
-      if(p<strlen(text)) 
-      {
-        outtext[i]=text[p];
-      } else {
-        outtext[i]='\0';
-      }
-    }
-  } else { 
-    for(int i=0;i<16;i++)
-    {
-      int p=i+scrollPos;
-      if(p<strlen(text)) 
-      {
-        outtext[i]=text[p];
-      } else {
-        outtext[i]='\0';
-      }
-    }
-  }
-  outtext[16]='\0';
-  printtext(outtext,1);
-  //lcd_clearline(1);
-  //lcd.print(outtext);
-  #endif
+  // do nothing if no lcd defined or only serial display defined
+#if defined(LCDSCREEN16x2) || defined(RGBLCD) || defined(OLED1306) || defined(P8544)
 
-  #ifdef OLED1306
   //Text scrolling routine.  Setup for 16x2 screen so will only display 16 chars
-  if(scrollPos<0) scrollPos=0;
-  char outtext[17];
-  if(isDir) { outtext[0]= 0x3E; 
-    for(int i=1;i<16;i++)
-    {
-      int p=i+scrollPos-1;
-      if(p<strlen(text)) 
-      {
-        outtext[i]=text[p];
-      } else {
-        outtext[i]='\0';
-      }
-    }
-  } else { 
-    for(int i=0;i<16;i++)
-    {
-      int p=i+scrollPos;
-      if(p<strlen(text)) 
-      {
-        outtext[i]=text[p];
-      } else {
-        outtext[i]='\0';
-      }
-    }
+  // or 14 chars on P8544
+  char outtext[screen_width_chars + 1];
+  char * outtext_p = outtext;
+  char * textp = text + scrollPos;
+  if(isDir) {
+    *outtext_p++ = '>';
   }
-  outtext[16]='\0';
+  while(outtext_p < outtext+screen_width_chars && *textp != '\0') {
+    *outtext_p++ = *textp++;
+  }
+  *outtext_p='\0';
   printtext(outtext,1);
-  //lcd_clearline(1);
-  //lcd.print(outtext);
-  #endif
 
-  #ifdef P8544
-  //Text scrolling routine.  Setup for 16x2 screen so will only display 16 chars
-  if(scrollPos<0) scrollPos=0;
-  char outtext[15];
-  if(isDir) { outtext[0]= 0x3E; 
-    for(int i=1;i<14;i++)
-    {
-      int p=i+scrollPos-1;
-      if(p<strlen(text)) 
-      {
-        outtext[i]=text[p];
-      } else {
-        outtext[i]='\0';
-      }
-    }
-  } else { 
-    for(int i=0;i<14;i++)
-    {
-      int p=i+scrollPos;
-      if(p<strlen(text)) 
-      {
-        outtext[i]=text[p];
-      } else {
-        outtext[i]='\0';
-      }
-    }
+  // new scroll routine below
+  // when we reached the end of the string, instead of scrolling it away to nothingness, we'll pause at the end
+  // for longer than usual, and reset the pos to 0 for next time
+  if (*textp == '\0') {
+    // reached the end of the string, during the above loop.
+    scrollPos = 0;
+    scrollTime=millis()+scrollWait;
   }
-  outtext[14]='\0';
-  printtext(outtext,1);
-  //lcd_clearline(1);
-  //lcd.print(outtext);
-  #endif
+  else
+  {
+    scrollPos++;
+  }
+
+#endif
 }
 
 
@@ -750,42 +626,40 @@ void printtextF(const char* text, int l) {  //Print text to screen.
   
   #ifdef LCDSCREEN16x2
     lcd.setCursor(0,l);
-    lcd.print(F("                "));
+    lcd.print(space);
     lcd.setCursor(0,l);
     lcd.print(reinterpret_cast <const __FlashStringHelper *> (text));
   #endif
 
   #ifdef RGBLCD
     lcd.setCursor(0,l);
-    lcd.print(F("                "));
+    lcd.print(space);
     lcd.setCursor(0,l);
     lcd.print(reinterpret_cast <const __FlashStringHelper *> (text));
   #endif
 
- #ifdef OLED1306
-       char* space = PSTR("                ");
-       strncpy_P(lineclr, space, 16);
-      if ( l == 0 ) {
-        strncpy_P(line0, text, 16);
-        sendStrXY(lineclr,0,0);
-      } else {
-        strncpy_P(line1, text, 16);
-        sendStrXY(lineclr,0,1);
-      }
-      sendStrXY(line0,0,0);
-      sendStrXY(line1,0,1);
+  #ifdef OLED1306
+    // handle the fact that text is in firmware whereas our OLED1306 sendStrLine expects strings to be in RAM,
+    // so just copy to RAM. Compared to implementing two variants of sendStrLine and sendStrXY (where
+    // string is in firmware or string is in ram), copying to RAM here is (slightly) the lesser of two evils.
+    // (on AVR, the below uses 12 bytes less firmware (but 17 bytes more RAM), than the alternative, assuming
+    // that strcpy_P has already been added to the image due to some other usage elsewhere in this project).
+    // For today, that's the correct tradeoff
+    static char _tmp[17];
+    strcpy_P(_tmp, text);
+    sendStrLine(_tmp, l);
   #endif
 
   #ifdef P8544
     lcd.setCursor(0,l);
-    lcd.print(F("              "));
+    lcd.print(space);
     lcd.setCursor(0,l);
     lcd.print(reinterpret_cast <const __FlashStringHelper *> (text));
   #endif 
    
 }
 
-void printtext(char* text, int l) {  //Print text to screen. 
+void printtext(const char* text, int l) {  //Print text to screen. 
   
   #ifdef SERIALSCREEN
   Serial.println(text);
@@ -793,28 +667,25 @@ void printtext(char* text, int l) {  //Print text to screen.
   
   #ifdef LCDSCREEN16x2
     lcd.setCursor(0,l);
-    lcd.print(F("                "));
+    lcd.print(space);
     lcd.setCursor(0,l);
     lcd.print(text);
   #endif
 
   #ifdef RGBLCD
     lcd.setCursor(0,l);
-    lcd.print(F("                "));
+    lcd.print(space);
     lcd.setCursor(0,l);
     lcd.print(text);
   #endif
 
-   #ifdef OLED1306
-      setXY(0,l);
-      sendStr("                ");
-      setXY(0,l);
-      sendStr(text);
+  #ifdef OLED1306
+    sendStrLine(text, l);
   #endif
 
   #ifdef P8544
     lcd.setCursor(0,l);
-    lcd.print(F("              "));
+    lcd.print(space);
     lcd.setCursor(0,l);
     lcd.print(text);
   #endif   

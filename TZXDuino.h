@@ -1,9 +1,9 @@
-PROGMEM const char TZXTape[7] = {'Z','X','T','a','p','e','!'};
-PROGMEM const char TAPcheck[7] = {'T','A','P','t','a','p','.'};
-PROGMEM const char ZX81Filename[9] = {'T','Z','X','D','U','I','N','O',0x9D};
-PROGMEM const char AYFile[8] = {'Z','X','A','Y','E','M','U','L'}; // added additional AY file header check
-PROGMEM const char TAPHdr[20] = {0x0,0x0,0x3,'Z','X','A','Y','F','i','l','e',' ',' ',0x1A,0xB,0x0,0xC0,0x0,0x80,0x6E}; // 
-//const char TAPHdr[24] = {0x13,0x0,0x0,0x3,' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',0x1A,0xB,0x0,0xC0,0x0,0x80,0x52,0x1C,0xB,0xFF};
+PROGMEM const byte TZXTape[7] = {'Z','X','T','a','p','e','!'};
+PROGMEM const byte TAPcheck[7] = {'T','A','P','t','a','p','.'};
+PROGMEM const byte ZX81Filename[9] = {'T','Z','X','D','U','I','N','O',0x9D};
+PROGMEM const byte AYFile[8] = {'Z','X','A','Y','E','M','U','L'}; // added additional AY file header check
+PROGMEM const byte TAPHdr[20] = {0x0,0x0,0x3,'Z','X','A','Y','F','i','l','e',' ',' ',0x1A,0xB,0x0,0xC0,0x0,0x80,0x6E}; // 
+//const byte TAPHdr[24] = {0x13,0x0,0x0,0x3,' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',0x1A,0xB,0x0,0xC0,0x0,0x80,0x52,0x1C,0xB,0xFF};
 
 //TZX block list - uncomment as supported
 #define ID10                0x10    //Standard speed data block
@@ -38,7 +38,7 @@ PROGMEM const char TAPHdr[20] = {0x0,0x0,0x3,'Z','X','A','Y','F','i','l','e',' '
 #define ZXO                 0xFC    //ZX80 O file
 #define ZXP                 0xFD    //ZX81 P File
 #define TAP                 0xFE    //Tap File Mode
-#define EOF                 0xFF    //End of file
+#define IDEOF               0xFF    //End of file
 
 PROGMEM const char UEFFile[9] = {'U','E','F',' ','F','i','l','e','!'};
 #define UEF                 0xFA    //UEF file
@@ -148,13 +148,12 @@ word currentPeriod=1;
 //ISR Variables
 volatile byte pos = 0;
 volatile word wbuffer[buffsize+1][2];
-volatile byte morebuff = HIGH;
+volatile bool morebuff = true;
 volatile byte workingBuffer=0;
-volatile byte isStopped=false;
+volatile bool isStopped=false;
 volatile byte pinState=LOW;
-volatile byte isPauseBlock = false;
-volatile byte wasPauseBlock = false;
-volatile byte intError = false;
+volatile bool isPauseBlock = false;
+volatile bool wasPauseBlock = false;
 
 //Main Variables
 byte AYPASS = 0;
@@ -162,7 +161,7 @@ byte hdrptr = 0;
 byte blkchksum = 0;
 word ayblklen = 0;
 byte btemppos = 0;
-byte copybuff = LOW;
+bool copybuff = false;
 unsigned long bytesRead=0;
 unsigned long bytesToRead=0;
 byte pulsesCountByte=0;
@@ -176,10 +175,8 @@ word TstatesperSample=0;
 byte usedBitsInLastByte=8;
 word loopCount=0;
 byte seqPulses=0;
-byte input[11];
 
 byte forcePause0=0;
-byte firstBlockPause = false;
 unsigned long loopStart=0;
 word pauseLength=0;
 word temppause=0;
@@ -192,16 +189,14 @@ volatile byte currentByte=0;
 volatile byte currentChar=0;
 byte pass=0;
 unsigned long debugCount=0;
-byte EndOfFile=false;
+bool EndOfFile=false;
 byte lastByte;
 //byte firstTime=true;
 
-byte currpct = 100;
-byte newpct = 0;
-byte spinpos = 0;
+signed char currpct;
+signed char newpct;
 unsigned long timeDiff2 = 0;
-unsigned int lcdsegs = 0;
-unsigned int offset = 2;
+unsigned int lcdsegs;
 
 int TSXspeedup = 1;
 int BAUDRATE = 1200;
@@ -215,7 +210,7 @@ byte passforOne=4;
 
 bool PauseAtStart = false;
 bool FlipPolarity = false;
-byte ID15switch = 0;
+volatile bool ID15switch = false;
 
 byte wibble = 1;
 byte parity = 0 ;        //0:NoParity 1:ParityOdd 2:ParityEven (default:0)
